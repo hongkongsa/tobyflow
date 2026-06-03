@@ -6,6 +6,10 @@ const PORT = 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  if (!req.path.includes('health')) console.log(`[REQ] ${req.method} ${req.path}${Object.keys(req.query).length ? '?' + new URLSearchParams(req.query) : ''}`);
+  next();
+});
 
 // ─── API: Health Check ──────────────────────────────────────────────────────
 app.get('/api/v1/health', (req, res) => {
@@ -659,14 +663,177 @@ app.get('/api/v1/config/versions', (req, res) => {
 
 // ─── API: Workflow Templates ──────────────────────────────────────────────────
 app.get('/api/v1/workflow-templates/categories', (req, res) => {
-  res.json({ success: true, data: [] });
+  res.json({ success: true, data: [
+    { id: 1, name: 'Image Generation', slug: 'image-generation', description: 'Tạo ảnh với các provider AI', icon: 'image', count: 3 },
+    { id: 2, name: 'Video Generation', slug: 'video-generation', description: 'Tạo video ngắn bằng AI', icon: 'video_camera', count: 1 },
+    { id: 3, name: 'Multi-Provider', slug: 'multi-provider', description: 'Kết hợp nhiều AI provider', icon: 'merge', count: 2 },
+    { id: 4, name: 'Text Processing', slug: 'text-processing', description: 'Xử lý text, viết prompt tự động', icon: 'text', count: 1 },
+    { id: 5, name: 'Automation', slug: 'automation', description: 'Tự động hoá quy trình', icon: 'generate', count: 1 }
+  ] });
 });
+let _wfTemplates = [
+  {
+    id: 1, name: 'Flow: Landscape Generator', description: 'Tạo ảnh phong cảnh bằng Google Flow với auto-download',
+    category_id: 1, category: { id: 1, name: 'Image Generation' },
+    thumbnail: '', preview_url: '',
+    provider: 'flow', difficulty: 'easy', is_premium: false,
+    nodes_count: 3, avg_rating: 4.6, ratings_count: 25, usage_count: 150,
+    tags: ['landscape', 'flow', 'download'],
+    nodes: [
+      { node_type: 'text', node_name: 'Prompt nguồn', prompt: 'Beautiful landscape with mountains and lake', pos_x: 100, pos_y: 150 },
+      { node_type: 'generate', node_name: 'Flow Generate', media_type: 'Image', ratio: '16:9', quantity: 2, pos_x: 400, pos_y: 150 },
+      { node_type: 'download', node_name: 'Download', download_resolution: '1k', pos_x: 700, pos_y: 150 }
+    ],
+    edges: [
+      { source_node_index: 0, target_node_index: 1, source_port: 'text', target_port: 'text' },
+      { source_node_index: 1, target_node_index: 2, source_port: 'media', target_port: 'media_in' }
+    ],
+    author: { id: 1, name: 'AobyFlowss' },
+    created_at: '2026-05-01T10:00:00Z', updated_at: '2026-06-01T10:00:00Z'
+  },
+  {
+    id: 2, name: 'ChatGPT: Portrait Maker', description: 'Tạo ảnh chân dung bằng ChatGPT với AI Agent viết prompt',
+    category_id: 1, category: { id: 1, name: 'Image Generation' },
+    thumbnail: '', preview_url: '',
+    provider: 'chatgpt', difficulty: 'medium', is_premium: false,
+    nodes_count: 3, avg_rating: 4.3, ratings_count: 18, usage_count: 89,
+    tags: ['portrait', 'chatgpt', 'ai-agent'],
+    nodes: [
+      { node_type: 'prompt', node_name: 'AI Agent', prompt: 'Viết prompt chi tiết cho ảnh chân dung', use_ai: true, provider: 'chatgpt', pos_x: 100, pos_y: 200 },
+      { node_type: 'chatgpt', node_name: 'ChatGPT Generate', ratio: 'portrait', pos_x: 400, pos_y: 200 },
+      { node_type: 'download', node_name: 'Download', download_resolution: '1k', pos_x: 700, pos_y: 200 }
+    ],
+    edges: [
+      { source_node_index: 0, target_node_index: 1, source_port: 'text', target_port: 'text' },
+      { source_node_index: 1, target_node_index: 2, source_port: 'media', target_port: 'media_in' }
+    ],
+    author: { id: 1, name: 'AobyFlowss' },
+    created_at: '2026-04-20T08:00:00Z', updated_at: '2026-05-25T14:00:00Z'
+  },
+  {
+    id: 3, name: 'Grok: Video Creator', description: 'AI viết kịch bản, trích xuất prompt, Grok tạo video',
+    category_id: 2, category: { id: 2, name: 'Video Generation' },
+    thumbnail: '', preview_url: '',
+    provider: 'grok', difficulty: 'hard', is_premium: true,
+    nodes_count: 4, avg_rating: 4.8, ratings_count: 12, usage_count: 45,
+    tags: ['video', 'grok', 'text-extract', 'ai-agent'],
+    nodes: [
+      { node_type: 'prompt', node_name: 'AI Agent', prompt: 'Viết kịch bản video', use_ai: true, pos_x: 100, pos_y: 200 },
+      { node_type: 'text_extract', node_name: 'Extract Prompt', extract_mode: 'marker', extract_marker: 'PROMPT', pos_x: 400, pos_y: 200 },
+      { node_type: 'grok', node_name: 'Grok Video', grok_mode: 'video', ratio: 'widescreen', pos_x: 700, pos_y: 200 },
+      { node_type: 'download', node_name: 'Download', download_resolution: '720p', pos_x: 1000, pos_y: 200 }
+    ],
+    edges: [
+      { source_node_index: 0, target_node_index: 1, source_port: 'text', target_port: 'text' },
+      { source_node_index: 1, target_node_index: 2, source_port: 'text', target_port: 'text' },
+      { source_node_index: 2, target_node_index: 3, source_port: 'media', target_port: 'media_in' }
+    ],
+    author: { id: 1, name: 'AobyFlowss' },
+    created_at: '2026-05-15T12:00:00Z', updated_at: '2026-06-01T09:00:00Z'
+  },
+  {
+    id: 4, name: 'Multi-AI Pipeline', description: 'Flow tạo ảnh gốc → ChatGPT enhance → Telegram gửi kết quả',
+    category_id: 3, category: { id: 3, name: 'Multi-Provider' },
+    thumbnail: '', preview_url: '',
+    provider: 'multi', difficulty: 'hard', is_premium: true,
+    nodes_count: 5, avg_rating: 4.9, ratings_count: 8, usage_count: 30,
+    tags: ['multi-provider', 'flow', 'chatgpt', 'telegram'],
+    nodes: [
+      { node_type: 'prompt', node_name: 'AI Agent', use_ai: true, pos_x: 50, pos_y: 200 },
+      { node_type: 'generate', node_name: 'Flow', media_type: 'Image', pos_x: 300, pos_y: 100 },
+      { node_type: 'chatgpt', node_name: 'ChatGPT', pos_x: 300, pos_y: 350 },
+      { node_type: 'delay', node_name: 'Wait', delay_seconds: 5, pos_x: 550, pos_y: 200 },
+      { node_type: 'telegram', node_name: 'Telegram', pos_x: 800, pos_y: 200 }
+    ],
+    edges: [
+      { source_node_index: 0, target_node_index: 1 },
+      { source_node_index: 0, target_node_index: 2 },
+      { source_node_index: 1, target_node_index: 3 },
+      { source_node_index: 2, target_node_index: 3 },
+      { source_node_index: 3, target_node_index: 4 }
+    ],
+    author: { id: 1, name: 'AobyFlowss' },
+    created_at: '2026-05-10T16:00:00Z', updated_at: '2026-06-02T11:00:00Z'
+  },
+  {
+    id: 5, name: 'Ref Image Remix', description: 'Upload ảnh tham chiếu → ChatGPT tạo lại với style mới',
+    category_id: 1, category: { id: 1, name: 'Image Generation' },
+    thumbnail: '', preview_url: '',
+    provider: 'chatgpt', difficulty: 'easy', is_premium: false,
+    nodes_count: 3, avg_rating: 4.4, ratings_count: 30, usage_count: 200,
+    tags: ['reference', 'chatgpt', 'remix', 'style-transfer'],
+    nodes: [
+      { node_type: 'image', node_name: 'Reference', pos_x: 100, pos_y: 200 },
+      { node_type: 'chatgpt', node_name: 'ChatGPT Remix', prompt: 'Recreate in watercolor style', pos_x: 400, pos_y: 200 },
+      { node_type: 'download', node_name: 'Download', pos_x: 700, pos_y: 200 }
+    ],
+    edges: [
+      { source_node_index: 0, target_node_index: 1, source_port: 'media', target_port: 'image_ref' },
+      { source_node_index: 1, target_node_index: 2, source_port: 'media', target_port: 'media_in' }
+    ],
+    author: { id: 1, name: 'AobyFlowss' },
+    created_at: '2026-04-25T09:00:00Z', updated_at: '2026-05-30T15:00:00Z'
+  }
+];
 app.get('/api/v1/workflow-templates', (req, res) => {
+  let filtered = [..._wfTemplates];
+  if (req.query.category_id) filtered = filtered.filter(t => t.category_id === parseInt(req.query.category_id));
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    filtered = filtered.filter(t => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || (t.tags || []).some(tag => tag.includes(q)));
+  }
+  if (req.query.difficulty) filtered = filtered.filter(t => t.difficulty === req.query.difficulty);
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
   res.json({
     success: true,
-    data: [],
-    meta: { total: 0, page: 1, per_page: 20 }
+    data: filtered.slice(start, start + perPage),
+    meta: { total: filtered.length, page, per_page: perPage, last_page: Math.ceil(filtered.length / perPage) || 1 }
   });
+});
+app.get('/api/v1/workflow-templates/:id', (req, res) => {
+  const tpl = _wfTemplates.find(t => t.id === parseInt(req.params.id));
+  if (!tpl) return res.status(404).json({ success: false, error: 'Template not found' });
+  res.json({ success: true, data: tpl });
+});
+app.post('/api/v1/workflow-templates/:id/use', (req, res) => {
+  const tpl = _wfTemplates.find(t => t.id === parseInt(req.params.id));
+  if (tpl) tpl.usage_count = (tpl.usage_count || 0) + 1;
+  res.json({ success: true, data: { template_id: req.params.id, used_at: new Date().toISOString() } });
+});
+app.post('/api/v1/workflow-templates/:id/rate', (req, res) => {
+  const tpl = _wfTemplates.find(t => t.id === parseInt(req.params.id));
+  if (tpl) {
+    tpl.ratings_count = (tpl.ratings_count || 0) + 1;
+    tpl.user_rating = req.body.rating;
+  }
+  res.json({ success: true, data: { template_id: req.params.id, rating: req.body.rating, user_rating: req.body.rating } });
+});
+app.post('/api/v1/workflow-templates/:id/clone', (req, res) => {
+  const tpl = _wfTemplates.find(t => t.id === parseInt(req.params.id));
+  if (!tpl) return res.status(404).json({ success: false, error: 'Template not found' });
+  const wfId = `wf_${Date.now()}_${_wfIdCounter++}`;
+  const wf = {
+    id: _wfIdCounter, wf_id: wfId,
+    wf_name: (tpl.name || 'Template') + ' (Import)',
+    name: (tpl.name || 'Template') + ' (Import)',
+    description: tpl.description || '',
+    status: 'idle', enabled: true, platform: tpl.provider || 'flow',
+    project_id: null, project_name: null,
+    nodes_count: tpl.nodes_count || 0, run_count: 0,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  };
+  _workflows.unshift(wf);
+  // Clone nodes
+  if (tpl.nodes) {
+    _wfNodes[wfId] = tpl.nodes.map((n, i) => ({
+      id: Date.now() + i, node_id: `node_${Date.now()}_${i}`, ...n,
+      enabled: true, status: 'pending', created_at: new Date().toISOString()
+    }));
+  }
+  res.json({ success: true, data: wf });
 });
 
 // ─── API: Templates (alias) ────────────────────────────────────────────────────
@@ -712,36 +879,115 @@ app.put('/api/v1/settings', (req, res) => {
 // ─── API: Workflows CRUD ──────────────────────────────────────────────────────
 let _workflows = [
   {
-    id: 1, wf_id: 'wf_demo_001', wf_name: 'Demo Workflow - Landscape',
-    name: 'Demo Workflow - Landscape', description: 'Tạo ảnh phong cảnh tự động',
+    id: 1, wf_id: 'wf_demo_001', wf_name: 'Landscape + Download',
+    name: 'Landscape + Download', description: 'Tạo ảnh phong cảnh bằng Flow rồi tự động download kết quả',
     status: 'idle', enabled: true, platform: 'flow',
     project_id: null, project_name: null,
-    nodes_count: 2, run_count: 5,
+    nodes_count: 3, progress_total: 3, run_count: 5,
     created_at: '2026-05-01T10:00:00Z', updated_at: '2026-06-01T10:00:00Z',
     user: { id: 1, name: 'Dev Admin (Local)' }
   },
   {
-    id: 2, wf_id: 'wf_demo_002', wf_name: 'Batch Portrait Generator',
-    name: 'Batch Portrait Generator', description: 'Chạy batch tạo ảnh chân dung',
+    id: 2, wf_id: 'wf_demo_002', wf_name: 'Multi-Provider Pipeline',
+    name: 'Multi-Provider Pipeline', description: 'AI Agent viết prompt → Flow tạo ảnh → ChatGPT enhance → Telegram gửi kết quả',
     status: 'idle', enabled: true, platform: 'flow',
     project_id: null, project_name: null,
-    nodes_count: 3, run_count: 12,
+    nodes_count: 5, progress_total: 5, run_count: 12,
     created_at: '2026-04-15T08:30:00Z', updated_at: '2026-05-28T14:20:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 3, wf_id: 'wf_demo_003', wf_name: 'Grok Video + Text Extract',
+    name: 'Grok Video + Text Extract', description: 'Dùng AI Agent phân tích text, trích xuất keyword, rồi tạo video bằng Grok',
+    status: 'idle', enabled: true, platform: 'grok',
+    project_id: null, project_name: null,
+    nodes_count: 4, progress_total: 4, run_count: 3,
+    created_at: '2026-05-20T14:00:00Z', updated_at: '2026-06-02T09:00:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 4, wf_id: 'wf_demo_004', wf_name: 'Ref Image → ChatGPT Remake',
+    name: 'Ref Image → ChatGPT Remake', description: 'Upload ảnh tham chiếu, dùng ChatGPT tạo lại ảnh với style mới',
+    status: 'idle', enabled: true, platform: 'chatgpt',
+    project_id: null, project_name: null,
+    nodes_count: 3, progress_total: 3, run_count: 8,
+    created_at: '2026-05-10T11:00:00Z', updated_at: '2026-06-01T16:30:00Z',
     user: { id: 1, name: 'Dev Admin (Local)' }
   }
 ];
-let _wfIdCounter = 3;
+let _wfIdCounter = 5;
+
+// ─── Seed workflow nodes ──────────────────────────────────────────────────────
+let _wfNodes = {
+  'wf_demo_001': [
+    { id: 1, node_id: 'node_001_1', node_type: 'text', node_name: 'Prompt nguồn', slug: 'prompt-nguon', prompt: 'Beautiful landscape with mountains, lake, sunset, photorealistic 8K', slug_auto: true, enabled: true, status: 'pending', pos_x: 100, pos_y: 150, created_at: '2026-05-01T10:00:00Z' },
+    { id: 2, node_id: 'node_001_2', node_type: 'generate', node_name: 'Tạo ảnh Flow', prompt: '', media_type: 'Image', ratio: '16:9', quantity: 2, model: null, auto_download: false, enabled: true, status: 'pending', pos_x: 400, pos_y: 150, created_at: '2026-05-01T10:01:00Z' },
+    { id: 3, node_id: 'node_001_3', node_type: 'download', node_name: 'Download kết quả', download_resolution: '1k', download_folder: 'landscapes', download_collect_all: true, enabled: true, status: 'pending', pos_x: 700, pos_y: 150, created_at: '2026-05-01T10:02:00Z' }
+  ],
+  'wf_demo_002': [
+    { id: 4, node_id: 'node_002_1', node_type: 'prompt', node_name: 'AI Agent - Viết prompt', prompt: 'Viết 1 prompt chi tiết để tạo ảnh chân dung phong cách Renaissance, dramatic lighting', use_ai: true, ai_fallback: true, ai_delete_after_run: true, provider: 'chatgpt', timeout_sec: 60, enabled: true, status: 'pending', pos_x: 50, pos_y: 200, created_at: '2026-04-15T08:30:00Z' },
+    { id: 5, node_id: 'node_002_2', node_type: 'generate', node_name: 'Flow - Tạo ảnh', prompt: '', media_type: 'Image', ratio: '9:16', quantity: 1, model: null, auto_download: false, enabled: true, status: 'pending', pos_x: 350, pos_y: 100, created_at: '2026-04-15T08:31:00Z' },
+    { id: 6, node_id: 'node_002_3', node_type: 'chatgpt', node_name: 'ChatGPT - Enhance', prompt: 'Recreate this image with more dramatic lighting and vibrant colors', ratio: 'story', use_fallback_prefix: 'auto', timeout_ms: 120000, max_ref_images: 4, auto_download: false, enabled: true, status: 'pending', pos_x: 350, pos_y: 350, created_at: '2026-04-15T08:32:00Z' },
+    { id: 7, node_id: 'node_002_4', node_type: 'delay', node_name: 'Chờ 5 giây', delay_seconds: 5, enabled: true, status: 'pending', pos_x: 650, pos_y: 200, created_at: '2026-04-15T08:33:00Z' },
+    { id: 8, node_id: 'node_002_5', node_type: 'telegram', node_name: 'Gửi Telegram', telegram_send_mode: 'group', telegram_message: 'Ảnh mới từ Multi-Provider Pipeline!', enabled: true, status: 'pending', pos_x: 900, pos_y: 200, created_at: '2026-04-15T08:34:00Z' }
+  ],
+  'wf_demo_003': [
+    { id: 9, node_id: 'node_003_1', node_type: 'prompt', node_name: 'AI Agent - Phân tích', prompt: 'Phân tích chủ đề "cyberpunk city" và viết prompt video chi tiết. Trả về prompt trong [PROMPT]...[/PROMPT]', use_ai: true, ai_fallback: true, provider: 'chatgpt', timeout_sec: 60, enabled: true, status: 'pending', pos_x: 100, pos_y: 200, created_at: '2026-05-20T14:00:00Z' },
+    { id: 10, node_id: 'node_003_2', node_type: 'text_extract', node_name: 'Trích xuất prompt', extract_mode: 'marker', extract_marker: 'PROMPT', extract_strict: false, extract_multi_match: 'first', extract_on_fail: 'skip_downstream', slug_auto: true, enabled: true, status: 'pending', pos_x: 400, pos_y: 200, created_at: '2026-05-20T14:01:00Z' },
+    { id: 11, node_id: 'node_003_3', node_type: 'grok', node_name: 'Grok - Tạo video', prompt: '', grok_mode: 'video', ratio: 'widescreen', grok_duration: '6s', grok_resolution: '720p', grok_image_quality: 'speed', quantity: 1, timeout_ms: 180000, auto_download: false, enabled: true, status: 'pending', pos_x: 700, pos_y: 200, created_at: '2026-05-20T14:02:00Z' },
+    { id: 12, node_id: 'node_003_4', node_type: 'download', node_name: 'Download video', download_resolution: '720p', download_folder: 'grok-videos', download_collect_all: false, enabled: true, status: 'pending', pos_x: 1000, pos_y: 200, created_at: '2026-05-20T14:03:00Z' }
+  ],
+  'wf_demo_004': [
+    { id: 13, node_id: 'node_004_1', node_type: 'image', node_name: 'Ảnh tham chiếu', ref_file_ids: '', max_ref_images: 1, enabled: true, status: 'pending', pos_x: 100, pos_y: 200, created_at: '2026-05-10T11:00:00Z' },
+    { id: 14, node_id: 'node_004_2', node_type: 'chatgpt', node_name: 'ChatGPT Remake', prompt: 'Recreate this image in watercolor painting style, soft colors, artistic', ratio: 'landscape', use_fallback_prefix: 'auto', timeout_ms: 120000, max_ref_images: 4, auto_download: false, enabled: true, status: 'pending', pos_x: 400, pos_y: 200, created_at: '2026-05-10T11:01:00Z' },
+    { id: 15, node_id: 'node_004_3', node_type: 'download', node_name: 'Download', download_resolution: '1k', download_folder: 'chatgpt-remakes', download_collect_all: false, enabled: true, status: 'pending', pos_x: 700, pos_y: 200, created_at: '2026-05-10T11:02:00Z' }
+  ]
+};
+
+// ─── Seed workflow edges ──────────────────────────────────────────────────────
+let _wfEdges = {
+  'wf_demo_001': [
+    { id: 1, edge_id: 'edge_001_1', source_node_id: 'node_001_1', target_node_id: 'node_001_2', source_port: 'text', target_port: 'text', created_at: '2026-05-01T10:05:00Z' },
+    { id: 2, edge_id: 'edge_001_2', source_node_id: 'node_001_2', target_node_id: 'node_001_3', source_port: 'media', target_port: 'media_in', created_at: '2026-05-01T10:06:00Z' }
+  ],
+  'wf_demo_002': [
+    { id: 3, edge_id: 'edge_002_1', source_node_id: 'node_002_1', target_node_id: 'node_002_2', source_port: 'text', target_port: 'text', created_at: '2026-04-15T08:35:00Z' },
+    { id: 4, edge_id: 'edge_002_2', source_node_id: 'node_002_1', target_node_id: 'node_002_3', source_port: 'text', target_port: 'text', created_at: '2026-04-15T08:36:00Z' },
+    { id: 5, edge_id: 'edge_002_3', source_node_id: 'node_002_2', target_node_id: 'node_002_4', source_port: 'media', target_port: 'any_in', created_at: '2026-04-15T08:37:00Z' },
+    { id: 6, edge_id: 'edge_002_4', source_node_id: 'node_002_3', target_node_id: 'node_002_4', source_port: 'media', target_port: 'any_in', created_at: '2026-04-15T08:38:00Z' },
+    { id: 7, edge_id: 'edge_002_5', source_node_id: 'node_002_4', target_node_id: 'node_002_5', source_port: 'any_out', target_port: 'media_in', created_at: '2026-04-15T08:39:00Z' }
+  ],
+  'wf_demo_003': [
+    { id: 8, edge_id: 'edge_003_1', source_node_id: 'node_003_1', target_node_id: 'node_003_2', source_port: 'text', target_port: 'text', created_at: '2026-05-20T14:05:00Z' },
+    { id: 9, edge_id: 'edge_003_2', source_node_id: 'node_003_2', target_node_id: 'node_003_3', source_port: 'text', target_port: 'text', created_at: '2026-05-20T14:06:00Z' },
+    { id: 10, edge_id: 'edge_003_3', source_node_id: 'node_003_3', target_node_id: 'node_003_4', source_port: 'media', target_port: 'media_in', created_at: '2026-05-20T14:07:00Z' }
+  ],
+  'wf_demo_004': [
+    { id: 11, edge_id: 'edge_004_1', source_node_id: 'node_004_1', target_node_id: 'node_004_2', source_port: 'media', target_port: 'image_ref', created_at: '2026-05-10T11:05:00Z' },
+    { id: 12, edge_id: 'edge_004_2', source_node_id: 'node_004_2', target_node_id: 'node_004_3', source_port: 'media', target_port: 'media_in', created_at: '2026-05-10T11:06:00Z' }
+  ]
+};
 
 app.get('/api/v1/workflows', (req, res) => {
+  let filtered = [..._workflows];
+  if (req.query.platform) filtered = filtered.filter(w => w.platform === req.query.platform);
+  if (req.query.search) {
+    const q = req.query.search.toLowerCase();
+    filtered = filtered.filter(w => (w.name || w.wf_name || '').toLowerCase().includes(q) || (w.description || '').toLowerCase().includes(q));
+  }
+  if (req.query.project_id) filtered = filtered.filter(w => String(w.project_id) === String(req.query.project_id));
   const page = parseInt(req.query.page) || 1;
   const perPage = parseInt(req.query.per_page) || 20;
   const start = (page - 1) * perPage;
-  const paged = _workflows.slice(start, start + perPage);
+  const paged = filtered.slice(start, start + perPage);
   res.json({
     success: true,
     data: paged,
-    meta: { current_page: page, last_page: Math.ceil(_workflows.length / perPage) || 1, per_page: perPage, total: _workflows.length }
+    meta: { current_page: page, last_page: Math.ceil(filtered.length / perPage) || 1, per_page: perPage, total: filtered.length }
   });
+});
+app.get('/api/v1/workflows/shared-with-me', (req, res) => {
+  res.json({ success: true, data: { workflows: [] } });
 });
 app.get('/api/v1/workflows/:wfId', (req, res) => {
   const wf = _workflows.find(w => w.wf_id === req.params.wfId);
@@ -778,7 +1024,33 @@ app.delete('/api/v1/workflows/:wfId', (req, res) => {
   res.json({ success: true });
 });
 app.post('/api/v1/workflows/bulk-save', (req, res) => {
-  res.json({ success: true, data: { saved: 0 } });
+  const payload = req.body || {};
+  let savedCount = 0;
+  // Save workflow metadata
+  if (payload.workflow) {
+    const idx = _workflows.findIndex(w => w.wf_id === payload.workflow.wf_id);
+    if (idx >= 0) { _workflows[idx] = { ..._workflows[idx], ...payload.workflow, updated_at: new Date().toISOString() }; }
+    else { _workflows.unshift({ id: _wfIdCounter++, ...payload.workflow, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); }
+    savedCount++;
+  }
+  // Save nodes
+  if (payload.nodes && payload.wf_id) {
+    _wfNodes[payload.wf_id] = payload.nodes.map((n, i) => ({
+      id: n.id || Date.now() + i, node_id: n.node_id || `node_${Date.now()}_${i}`, ...n, created_at: n.created_at || new Date().toISOString()
+    }));
+    savedCount += payload.nodes.length;
+    // Auto-update progress_total on the workflow
+    const wf = _workflows.find(w => w.wf_id === payload.wf_id);
+    if (wf) { wf.nodes_count = payload.nodes.length; wf.progress_total = payload.nodes.length; }
+  }
+  // Save edges
+  if (payload.edges && payload.wf_id) {
+    _wfEdges[payload.wf_id] = payload.edges.map((e, i) => ({
+      id: e.id || Date.now() + i, edge_id: e.edge_id || `edge_${Date.now()}_${i}`, ...e, created_at: e.created_at || new Date().toISOString()
+    }));
+    savedCount += payload.edges.length;
+  }
+  res.json({ success: true, data: { saved: savedCount } });
 });
 app.post('/api/v1/workflows/:wfId/reset', (req, res) => {
   const wf = _workflows.find(w => w.wf_id === req.params.wfId);
@@ -787,7 +1059,6 @@ app.post('/api/v1/workflows/:wfId/reset', (req, res) => {
 });
 
 // ─── API: Workflow Nodes ──────────────────────────────────────────────────────
-let _wfNodes = {};
 app.get('/api/v1/workflows/:wfId/nodes', (req, res) => {
   res.json({ success: true, data: _wfNodes[req.params.wfId] || [] });
 });
@@ -811,11 +1082,13 @@ app.delete('/api/v1/workflows/:wfId/nodes/:nodeId', (req, res) => {
   res.json({ success: true });
 });
 app.patch('/api/v1/workflows/:wfId/nodes/:nodeId/status', (req, res) => {
-  res.json({ success: true, data: { node_id: req.params.nodeId, ...req.body } });
+  const nodes = _wfNodes[req.params.wfId] || [];
+  const node = nodes.find(n => n.node_id === req.params.nodeId);
+  if (node) { Object.assign(node, req.body); }
+  res.json({ success: true, data: node || { node_id: req.params.nodeId, ...req.body } });
 });
 
 // ─── API: Workflow Edges ──────────────────────────────────────────────────────
-let _wfEdges = {};
 app.get('/api/v1/workflows/:wfId/edges', (req, res) => {
   res.json({ success: true, data: _wfEdges[req.params.wfId] || [] });
 });
@@ -837,6 +1110,7 @@ app.delete('/api/v1/workflows/:wfId/edges/:edgeId', (req, res) => {
 app.get('/api/v1/shared-workflows', (req, res) => {
   res.json({ success: true, data: [], meta: { total: 0, page: 1, per_page: 20 } });
 });
+// Moved above: shared-with-me is added before /:wfId route
 
 // ─── API: Tasks CRUD ──────────────────────────────────────────────────────────
 let _tasks = [
@@ -1171,7 +1445,157 @@ app.post('/api/v1/sse/ticket', (req, res) => {
 
 // ─── API: Node Templates ──────────────────────────────────────────────────────
 app.get('/api/v1/workflow-node-types', (req, res) => {
-  res.json({ success: true, data: [] });
+  res.json({
+    success: true,
+    data: [
+      {
+        type: 'generate', name: 'Tạo ảnh/video (Flow)', description: 'Tạo ảnh hoặc video mới bằng Google Flow',
+        icon: 'generate', color: 'generate', sort_order: 1, coming_soon: false,
+        config: {
+          defaults: { media_type: 'Image', ratio: '16:9', quantity: 1, model: null, video_input_type: 'Frames', video_duration: '6s' },
+          validation: { prompt_max_length: 5000, max_ref_images: 10, max_quantity: 4 },
+          ui: { show_model_picker: true, show_ratio_picker: true, show_quantity: true, show_video_toggle: true, show_ref_upload: true, show_voice_picker: true, supports_slug: true },
+          ports: {
+            in: [
+              { name: 'image_ref', type: 'image', required: false, multiple: true, label: 'Reference images' },
+              { name: 'text', type: 'text', required: false, multiple: false, label: 'Prompt text' },
+              { name: 'frame_1', type: 'frame', required: false, multiple: false, label: 'Frame 1 (video)', visibleWhen: 'isVideoFrames' },
+              { name: 'frame_2', type: 'frame', required: false, multiple: false, label: 'Frame 2 (video)', visibleWhen: 'isVideoFrames' }
+            ],
+            out: [{ name: 'media', type: 'image', label: 'Result', dynamicType: 'media_type' }]
+          }
+        }
+      },
+      {
+        type: 'chatgpt', name: 'ChatGPT', description: 'Tạo ảnh qua ChatGPT (DALL·E / GPT-Image)',
+        icon: 'chatgpt', color: 'chatgpt', sort_order: 2, coming_soon: false,
+        config: {
+          defaults: { ratio: 'story', use_fallback_prefix: 'auto', timeout_ms: 120000, max_ref_images: 4 },
+          validation: { prompt_max_length: 4000, max_ref_images: 4 },
+          ui: { show_ratio_picker: true, show_ref_upload: true, supports_slug: true },
+          ports: {
+            in: [
+              { name: 'image_ref', type: 'image', required: false, multiple: true, label: 'Reference images' },
+              { name: 'text', type: 'text', required: false, multiple: false, label: 'Prompt text' }
+            ],
+            out: [{ name: 'media', type: 'image', label: 'ChatGPT images' }]
+          }
+        }
+      },
+      {
+        type: 'grok', name: 'Grok', description: 'Tạo ảnh/video qua Grok (xAI)',
+        icon: 'grok', color: 'grok', sort_order: 3, coming_soon: false,
+        config: {
+          defaults: { ratio: 'widescreen', grok_mode: 'image', grok_duration: '6s', grok_resolution: '720p', grok_image_quality: 'speed', quantity: 1, timeout_ms: 180000, max_ref_images: 4 },
+          validation: { prompt_max_length: 5000, max_ref_images: 4 },
+          ui: { show_ratio_picker: true, show_ref_upload: true, show_mode_toggle: true, supports_slug: true },
+          ports: {
+            in: [
+              { name: 'image_ref', type: 'image', required: false, multiple: true, label: 'Reference images' },
+              { name: 'text', type: 'text', required: false, multiple: false, label: 'Prompt text' }
+            ],
+            out: [{ name: 'media', type: 'image', label: 'Result', dynamicType: 'grok_mode' }]
+          }
+        }
+      },
+      {
+        type: 'prompt', name: 'AI Agent', description: 'Pass-through text hoặc dùng AI (ChatGPT/Gemini) để xử lý text — enhance prompt, viết kịch bản, phân tích ảnh, summarize, translate, brainstorm.',
+        icon: 'prompt', color: 'prompt', sort_order: 4, coming_soon: false,
+        config: {
+          defaults: { use_ai: false, ai_fallback: true, ai_delete_after_run: true, provider: 'chatgpt', timeout_sec: 60, max_ref_images: 4 },
+          validation: { prompt_max_length: 10000, max_ref_images: 4 },
+          ui: { show_ai_toggle: true, show_provider_select: true, supports_slug: true },
+          ports: {
+            in: [
+              { name: 'text', type: 'text', required: false, multiple: false, label: 'Prompt upstream' },
+              { name: 'image_ref', type: 'image', required: false, multiple: true, label: 'Reference images', visibleWhen: 'enhance' }
+            ],
+            out: [{ name: 'text', type: 'text', label: 'Result text' }]
+          }
+        }
+      },
+      {
+        type: 'text', name: 'Text', description: 'Static text/prompt source for @mentions',
+        icon: 'text', color: 'text', sort_order: 5, coming_soon: false,
+        config: {
+          defaults: { prompt: '', slug_auto: true },
+          ui: { supports_slug: true },
+          ports: { in: [], out: [{ name: 'text', type: 'text', label: 'Text output' }] }
+        }
+      },
+      {
+        type: 'text_extract', name: 'Text Extract', description: 'Trích xuất text từ AI response (regex/JSON)',
+        icon: 'text_extract', color: 'text_extract', sort_order: 6, coming_soon: false,
+        config: {
+          defaults: { extract_mode: 'marker', extract_marker: '', extract_regex: '', extract_strict: false, extract_multi_match: 'first', extract_on_fail: 'skip_downstream', slug_auto: true },
+          ui: { supports_slug: true },
+          ports: {
+            in: [{ name: 'text', type: 'text', required: true, multiple: false, label: 'Input text' }],
+            out: [{ name: 'text', type: 'text', label: 'Extracted text' }]
+          }
+        }
+      },
+      {
+        type: 'image', name: 'Image', description: 'Upload hoặc gán ảnh tham chiếu',
+        icon: 'image', color: 'image', sort_order: 7, coming_soon: false,
+        config: {
+          defaults: { max_ref_images: 1 },
+          ui: { show_ref_upload: true },
+          ports: { in: [], out: [{ name: 'media', type: 'image', label: 'Ref image' }] }
+        }
+      },
+      {
+        type: 'delay', name: 'Wait', description: 'Chờ X giây trước khi tiếp tục',
+        icon: 'delay', color: 'delay', sort_order: 8, coming_soon: false,
+        config: {
+          defaults: { delay_seconds: 3 },
+          ui: {},
+          ports: {
+            in: [{ name: 'any_in', type: 'any', required: false, label: 'Input pass-through' }],
+            out: [{ name: 'any_out', type: 'any', label: 'Output (after delay)' }]
+          }
+        }
+      },
+      {
+        type: 'download', name: 'Download', description: 'Tải xuống kết quả tự động',
+        icon: 'download', color: 'download', sort_order: 9, coming_soon: false,
+        config: {
+          defaults: { download_resolution: '1k', download_folder: '', download_file_template: '', download_collect_all: false },
+          ui: {},
+          ports: {
+            in: [{ name: 'media_in', type: 'any', required: true, multiple: true, label: 'Files to download' }],
+            out: []
+          }
+        }
+      },
+      {
+        type: 'telegram', name: 'Telegram', description: 'Gửi kết quả qua Telegram',
+        icon: 'telegram', color: 'telegram', sort_order: 10, coming_soon: false,
+        config: {
+          defaults: { telegram_send_mode: 'group', telegram_message: '' },
+          ui: { terminal_sink: true },
+          ports: {
+            in: [{ name: 'media_in', type: 'any', required: true, multiple: true, label: 'Files to Telegram' }],
+            out: [{ name: 'pass', type: 'any', label: 'Pass-through' }]
+          }
+        }
+      },
+      {
+        type: 'note', name: 'Ghi chú', description: 'Ghi chú trên canvas (không có kết nối)',
+        icon: 'note', color: 'note', sort_order: 11, coming_soon: false,
+        config: {
+          defaults: { note_text: '' },
+          ui: {},
+          ports: { in: [], out: [] }
+        }
+      },
+      { type: 'transform', name: 'Transform', description: 'Biến đổi ảnh/video (upscale, effects)', icon: 'transform', color: 'transform', sort_order: 90, coming_soon: true, config: { ui: {} } },
+      { type: 'condition', name: 'Condition', description: 'Điều kiện rẽ nhánh', icon: 'condition', color: 'condition', sort_order: 91, coming_soon: true, config: { ui: {} } },
+      { type: 'merge', name: 'Merge', description: 'Gộp nhiều inputs', icon: 'merge', color: 'merge', sort_order: 92, coming_soon: true, config: { ui: {} } },
+      { type: 'output', name: 'Output', description: 'Kết quả cuối cùng', icon: 'output', color: 'output', sort_order: 93, coming_soon: true, config: { ui: {} } }
+    ],
+    meta: { version: 1 }
+  });
 });
 
 // ─── API: Addon Prompts ────────────────────────────────────────────────────────
@@ -1403,7 +1827,9 @@ app.use((req, res) => {
   res.json({ success: true, data: {} });
 });
 
-app.listen(PORT, () => {
+// Express 5 returns a Promise from app.listen — must await it to keep the process alive
+(async () => {
+  await app.listen(PORT);
   console.log(`[Local Server] Running on http://localhost:${PORT}`);
   console.log('[Local Server] All endpoints ready with proper data structures');
-});
+})();
