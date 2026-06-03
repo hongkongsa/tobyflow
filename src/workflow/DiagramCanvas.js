@@ -663,8 +663,8 @@ class DiagramCanvas {
 
         // Spread nodes if all stacked at same position
         if (allSamePos) {
-          posX = 100 + (index % 3) * 350;
-          posY = 100 + Math.floor(index / 3) * 250;
+          posX = 100 + (index % 3) * 600;
+          posY = 100 + Math.floor(index / 3) * 300;
         }
 
         // skipQuotaCheck: true → bảo toàn data user khi plan downgrade.

@@ -500,7 +500,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 2;
+  z-index: 10;
 }
 /* Native ports (interactive layer) — đẩy ra ngoài border node */
 .drawflow .drawflow-node .inputs {
@@ -1623,6 +1623,10 @@
    pointer-events:none → kéo node xuyên qua được. */
 .df-node-preview-wrap {
   position: relative;
+  pointer-events: none;
+}
+.df-node-preview-wrap > * {
+  pointer-events: auto;
 }
 .df-node-prompt-overlay {
   position: absolute;

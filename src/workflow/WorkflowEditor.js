@@ -15849,7 +15849,7 @@ QUY TẮC:
     // của mỗi node để tránh overlap khi có node cao (image/prompt với preview lớn).
     const START_X = 80;
     const START_Y = 80;
-    const STEP_X = 480;  // node width ~340 + gap 140 cho connection lines rõ ràng
+    const STEP_X = 620;  // node max-width 540 + gap 80 cho connection lines + ports
     const VERT_GAP = 100; // khoảng cách dọc lớn hơn để lines không chồng chéo
     const FALLBACK_HEIGHT = 220;
 
