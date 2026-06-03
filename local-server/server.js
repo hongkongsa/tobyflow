@@ -211,10 +211,10 @@ app.get('/api/v1/providers/api-configs', (req, res) => {
           },
           dom_selectors: {
             slate_editor: { selectors: ["div[data-slate-editor='true']"] },
-            submit_button: { selectors: ["button[aria-label='Submit prompt']", "button:has(.material-symbols-outlined:contains('arrow_forward'))"], icon_text: "arrow_forward" },
-            settings_button: { selectors: ["button[aria-label='Settings']"], icon_text: "tune" },
-            icon_element: { selectors: ["span.material-symbols-outlined", "span.material-symbols-rounded"] },
-            add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']"] },
+            submit_button: { selectors: ["button[type='submit']", "button[aria-label='Submit prompt']", "button[aria-label='Create']"], icon_text: "arrow_forward", button_text: ["Tạo", "Create"] },
+            settings_button: { selectors: ["button[aria-label='Settings']", "button[aria-label='Cài đặt']"], icon_text: "tune" },
+            icon_element: { selectors: ["i.google-symbols", "i[class*='google-symbols']", "span.material-symbols-outlined", "span.material-symbols-rounded"] },
+            add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']", "button[aria-label='Thêm nội dung nghe nhìn']"] },
             tile_container: { selectors: ["div[data-tile-id]"] }
           },
           video_durations: {
@@ -351,21 +351,22 @@ app.get('/api/v1/providers/api-configs', (req, res) => {
 
 // ─── API: Provider DOM Selectors ─────────────────────────────────────────────
 app.get('/api/v1/providers/dom-selectors', (req, res) => {
+  console.log('[Local Server] ✅ DOM selectors requested (flow selectors will be sent)');
   res.json({
     success: true,
     data: {
       flow: {
         selectors: {
           slate_editor: { selectors: ["div[data-slate-editor='true']"], fallback: "div[contenteditable='true']" },
-          submit_button: { selectors: ["button[aria-label='Submit prompt']", "button[aria-label='Create']"], icon_text: "arrow_forward" },
-          settings_button: { selectors: ["button[aria-label='Settings']"], icon_text: "tune" },
-          icon_element: { selectors: ["span.material-symbols-outlined", "span.material-symbols-rounded"] },
-          add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']"] },
-          tile_container: { selectors: ["div[data-tile-id]", ".tile-container", "[class*='tile']"] },
+          submit_button: { selectors: ["button[type='submit']", "button[aria-label='Submit prompt']", "button[aria-label='Create']"], icon_text: "arrow_forward", button_text: ["Tạo", "Create"] },
+          settings_button: { selectors: ["button[aria-label='Settings']", "button[aria-label='Cài đặt']"], icon_text: "tune" },
+          icon_element: { selectors: ["i.google-symbols", "i[class*='google-symbols']", "span.material-symbols-outlined", "span.material-symbols-rounded"] },
+          add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']", "button[aria-label='Thêm nội dung nghe nhìn']"] },
+          tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']"] },
           media_url_pattern: { pattern: "https://lh3.googleusercontent.com/" },
-          flow_agent_toggle_button: { selectors: ["button[aria-label='Agent']"], icon_text: "smart_toy" },
-          flow_agent_instruction_done_button: { selectors: ["button[aria-label='Done']", "button:contains('Done')"] },
-          flow_chat_agent_close_button: { selectors: ["button[aria-label='Close']", "button[aria-label='Cancel']"] },
+          flow_agent_toggle_button: { selectors: ["button[aria-pressed]", "button[aria-label='Agent']"], icon_text: "smart_toy", button_text: ["Tác nhân", "Agent"] },
+          flow_agent_instruction_done_button: { selectors: ["button[aria-label='Done']", "button[aria-label='Xong']"], button_text: ["Done", "Xong"] },
+          flow_chat_agent_close_button: { selectors: ["button[aria-label='Close']", "button[aria-label='Đóng']", "button[aria-label='Cancel']"], button_text: ["Đóng", "Close"] },
           project_link: { selectors: ["a[href*='/project/']"] }
         },
         name: 'Flow', status: 'active', config_version: 2
