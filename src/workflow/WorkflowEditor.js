@@ -1984,7 +1984,11 @@ class WorkflowEditor {
   }
 
   renderPalette() {
-    const activeTypes = ['generate', 'download', 'telegram', 'delay', 'note'];
+    const nodeTypes = NodeTemplates.getMergedTypes();
+    const activeTypes = Object.keys(nodeTypes)
+      .filter(key => !['transform', 'condition', 'merge', 'output'].includes(key))
+      .sort((a, b) => (nodeTypes[a].sortOrder ?? 999) - (nodeTypes[b].sortOrder ?? 999));
+      
     return activeTypes.map(type =>
       NodeTemplates.createPaletteItem(type)
     ).join('');
@@ -15579,6 +15583,11 @@ QUY TẮC:
 
     // Fetch server node types (cached, TTL 5 phút)
     await NodeTemplates.fetchFromServer();
+      const paletteContainer = this.overlay.querySelector('.node-palette');
+      if (paletteContainer) {
+        paletteContainer.innerHTML = this.renderPalette();
+        this.setupPaletteDragDrop();
+      }
     const nodeTypes = NodeTemplates.getMergedTypes();
 
     // Hiển thị tất cả node từ merged types (server + local).

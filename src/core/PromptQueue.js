@@ -131,7 +131,8 @@ class PromptQueue {
             const moduleNames = { prompts: 'Generate', task: 'Task', workflow: 'Workflow', angles: 'Angles', effects: 'Effects' };
             ExecutionGate.showDeniedDialog(gate, moduleNames[owner] || '');
           }
-          return { completed: 0, failed: prompts.length, stopped: false, reason: gate.reason };
+          const failedPrompts = prompts.map((p, idx) => ({ index: idx, prompt: typeof p === 'string' ? p : (p.text || ''), error: gate.reason || 'ExecutionGate denied' }));
+          return { completed: 0, failed: prompts.length, stopped: false, reason: gate.reason, failedPrompts };
         }
         executionToken = gate.token;
       } catch (e) {
@@ -141,7 +142,8 @@ class PromptQueue {
             const moduleNames = { prompts: 'Generate', task: 'Task', workflow: 'Workflow', angles: 'Angles', effects: 'Effects' };
             window.QuotaErrorHandler.showDialog(e, moduleNames[owner] || '');
           }
-          return { completed: 0, failed: prompts.length, stopped: false, reason: e.code || e.reason };
+          const failedPrompts = prompts.map((p, idx) => ({ index: idx, prompt: typeof p === 'string' ? p : (p.text || ''), error: e.message || e.code || e.reason || 'Quota Error' }));
+          return { completed: 0, failed: prompts.length, stopped: false, reason: e.code || e.reason, failedPrompts };
         }
         console.warn('[PromptQueue] ExecutionGate request failed, proceeding:', e.message);
       }
@@ -252,14 +254,16 @@ class PromptQueue {
         const gate = await ExecutionGate.request('task_run', totalPrompts, { owner: 'task', label: 'Task batch', provider: _batchProvider });
         if (!gate.allowed) {
           ExecutionGate.showDeniedDialog(gate, 'Task');
-          return { completed: 0, failed: totalPrompts, stopped: false, reason: gate.reason };
+          const failedPrompts = tasks.flatMap(t => (t.prompts || ['']).map((p, idx) => ({ index: idx, prompt: typeof p === 'string' ? p : (p.text || ''), error: gate.reason || 'ExecutionGate denied' })));
+          return { completed: 0, failed: totalPrompts, stopped: false, reason: gate.reason, failedPrompts };
         }
         executionToken = gate.token;
       } catch (e) {
         if (window.QuotaErrorHandler?.handleIfQuotaError(e, 'Task')) {
           console.warn('[PromptQueue] ExecutionGate batch denied:', e.code || e.reason);
           const totalPrompts = tasks.reduce((sum, t) => sum + ((t.prompts?.length > 1) ? t.prompts.length : 1), 0);
-          return { completed: 0, failed: totalPrompts, stopped: false, reason: e.code || e.reason };
+          const failedPrompts = tasks.flatMap(t => (t.prompts || ['']).map((p, idx) => ({ index: idx, prompt: typeof p === 'string' ? p : (p.text || ''), error: e.message || e.code || e.reason || 'Quota Error' })));
+          return { completed: 0, failed: totalPrompts, stopped: false, reason: e.code || e.reason, failedPrompts };
         }
         console.warn('[PromptQueue] ExecutionGate batch request failed, proceeding:', e.message);
       }

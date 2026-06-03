@@ -57,13 +57,13 @@ class FeatureGate {
       gen_run_max: { type: 'quota', value: -1 },
 
       // === ChatGPT Provider ===
-      // Default FALSE - requires premium plan, server returns actual value
-      chatgpt_enabled: { type: 'boolean', value: false },
+      // Default TRUE locally for development testing
+      chatgpt_enabled: { type: 'boolean', value: true },
       chatgpt_run_max: { type: 'quota', value: 0 },
 
       // === Grok Provider ===
-      // Default FALSE - requires premium plan, server returns actual value
-      grok_enabled: { type: 'boolean', value: false },
+      // Default TRUE locally for development testing
+      grok_enabled: { type: 'boolean', value: true },
       grok_run_max: { type: 'quota', value: 0 },
 
       // === Tasks Module ===
@@ -79,10 +79,13 @@ class FeatureGate {
       workflows_enabled: { type: 'boolean', value: false },
       workflows_max: { type: 'quota', value: 1 },
       workflows_run_max: { type: 'quota', value: 1 },
-      workflows_nodes_max: { type: 'quota', value: 5 },
+      workflows_nodes_max: { type: 'quota', value: 50 }, // Increased from 5 for local testing
       workflow_share_enabled: { type: 'boolean', value: false },
       workflow_import: { type: 'boolean', value: false },
       workflow_export: { type: 'boolean', value: false },
+      telegram_enabled: { type: 'boolean', value: true },
+      telegram_workflow: { type: 'boolean', value: true },
+      prompt_node_enabled: { type: 'boolean', value: true },
 
       // === Angles Module ===
       angles_enabled: { type: 'boolean', value: true },

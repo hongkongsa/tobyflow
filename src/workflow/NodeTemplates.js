@@ -1027,6 +1027,19 @@ const NodeTemplates = {
     const icon = this.icons[type];
     const isComingSoon = !!config.comingSoon;
     const comingSoonLabel = window.I18n?.t('workflow.comingSoon') || 'Sắp ra mắt';
+    
+    const isGenerateLocked = type === 'generate' && !(window.featureGate?.canUse('gen_enabled') ?? false);
+    const isTelegramLocked = type === 'telegram' && (
+      !(window.featureGate?.canUse('telegram_enabled') ?? false) ||
+      !(window.featureGate?.canUse('telegram_workflow') ?? false)
+    );
+    const isChatGPTLocked = type === 'chatgpt' && !(window.featureGate?.canUse('chatgpt_enabled') ?? false);
+    const isPromptLocked = type === 'prompt' && !(window.featureGate?.canUse('prompt_node_enabled') ?? false);
+    const isGrokLocked = type === 'grok' && !(window.featureGate?.canUse('grok_enabled') ?? false);
+    const isLocked = isGenerateLocked || isTelegramLocked || isChatGPTLocked || isPromptLocked || isGrokLocked;
+    const premiumBadge = isLocked
+      ? ' <svg width="12" height="12" viewBox="0 0 24 24" fill="#eab308" style="margin-left:4px;vertical-align:middle;display:inline-block;"><path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5ZM19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"></path></svg>'
+      : '';
 
     return `
       <div class="node-palette-item${isComingSoon ? ' node-palette-item--coming-soon' : ''}"
@@ -1034,7 +1047,7 @@ const NodeTemplates = {
            draggable="${isComingSoon ? 'false' : 'true'}"
            ${isComingSoon ? `data-disabled="true" title="${comingSoonLabel}"` : ''}>
         <div class="node-palette-item-icon df-node-icon ${config.color}">${icon}</div>
-        <div class="node-palette-item-name">${config.name}</div>
+        <div class="node-palette-item-name">${config.name}${premiumBadge}</div>
         ${isComingSoon ? `<span class="node-palette-item-badge">${comingSoonLabel}</span>` : ''}
       </div>
     `;
