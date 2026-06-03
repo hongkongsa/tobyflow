@@ -514,7 +514,7 @@ const DEV_USER = {
   id: 1,
   email: 'dev@localhost',
   name: 'Dev Admin (Local)',
-  plan_slug: 'pro',
+  plan_slug: 'autoflow-pro',
   plan_name: 'Pro',
   role: 'admin',
   is_admin: true,
@@ -992,7 +992,9 @@ app.get('/api/v1/workflows/shared-with-me', (req, res) => {
 app.get('/api/v1/workflows/:wfId', (req, res) => {
   const wf = _workflows.find(w => w.wf_id === req.params.wfId);
   if (!wf) return res.status(404).json({ success: false, error: 'Workflow not found' });
-  res.json({ success: true, data: wf });
+  // Include nodes and edges in the response for executor to use
+  const data = { ...wf, nodes: _wfNodes[req.params.wfId] || [], edges: _wfEdges[req.params.wfId] || [] };
+  res.json({ success: true, data });
 });
 app.post('/api/v1/workflows', (req, res) => {
   const wfId = `wf_${Date.now()}_${_wfIdCounter++}`;
@@ -1026,26 +1028,36 @@ app.delete('/api/v1/workflows/:wfId', (req, res) => {
 app.post('/api/v1/workflows/bulk-save', (req, res) => {
   const payload = req.body || {};
   let savedCount = 0;
+  // Resolve wf_id from either payload.wf_id or payload.workflow.wf_id
+  const resolvedWfId = payload.wf_id || payload.workflow?.wf_id;
+  // Handle workflow metadata — frontend may send it nested under `workflow` key or flat at top level
+  let workflowData = payload.workflow;
+  if (!workflowData && resolvedWfId) {
+    // Extract workflow metadata from flat payload (exclude nodes/edges arrays)
+    const { nodes, edges, ...rest } = payload;
+    workflowData = rest;
+  }
   // Save workflow metadata
-  if (payload.workflow) {
-    const idx = _workflows.findIndex(w => w.wf_id === payload.workflow.wf_id);
-    if (idx >= 0) { _workflows[idx] = { ..._workflows[idx], ...payload.workflow, updated_at: new Date().toISOString() }; }
-    else { _workflows.unshift({ id: _wfIdCounter++, ...payload.workflow, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); }
+  if (workflowData && (workflowData.wf_id || resolvedWfId)) {
+    if (!workflowData.wf_id) workflowData.wf_id = resolvedWfId;
+    const idx = _workflows.findIndex(w => w.wf_id === workflowData.wf_id);
+    if (idx >= 0) { _workflows[idx] = { ..._workflows[idx], ...workflowData, updated_at: new Date().toISOString() }; }
+    else { _workflows.unshift({ id: _wfIdCounter++, ...workflowData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }); }
     savedCount++;
   }
   // Save nodes
-  if (payload.nodes && payload.wf_id) {
-    _wfNodes[payload.wf_id] = payload.nodes.map((n, i) => ({
+  if (payload.nodes && resolvedWfId) {
+    _wfNodes[resolvedWfId] = payload.nodes.map((n, i) => ({
       id: n.id || Date.now() + i, node_id: n.node_id || `node_${Date.now()}_${i}`, ...n, created_at: n.created_at || new Date().toISOString()
     }));
     savedCount += payload.nodes.length;
     // Auto-update progress_total on the workflow
-    const wf = _workflows.find(w => w.wf_id === payload.wf_id);
+    const wf = _workflows.find(w => w.wf_id === resolvedWfId);
     if (wf) { wf.nodes_count = payload.nodes.length; wf.progress_total = payload.nodes.length; }
   }
   // Save edges
-  if (payload.edges && payload.wf_id) {
-    _wfEdges[payload.wf_id] = payload.edges.map((e, i) => ({
+  if (payload.edges && resolvedWfId) {
+    _wfEdges[resolvedWfId] = payload.edges.map((e, i) => ({
       id: e.id || Date.now() + i, edge_id: e.edge_id || `edge_${Date.now()}_${i}`, ...e, created_at: e.created_at || new Date().toISOString()
     }));
     savedCount += payload.edges.length;
