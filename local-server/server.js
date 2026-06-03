@@ -230,7 +230,14 @@ app.get('/api/v1/providers/api-configs', (req, res) => {
             settings_button: { selectors: ["button[aria-label='Settings']", "button[aria-label='Cài đặt']"], icon_text: "tune" },
             icon_element: { selectors: ["i.google-symbols", "i[class*='google-symbols']", "span.material-symbols-outlined", "span.material-symbols-rounded"] },
             add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']", "button[aria-label='Thêm nội dung nghe nhìn']"] },
-            tile_container: { selectors: ["div[data-tile-id]"] }
+            tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']", "[class*='Tile']", "img[src*='getMediaUrlRedirect']"] },
+            settings_panel_candidates: { selectors: ["div[role='dialog']", "div[class*='settings']", "div[class*='panel']"] },
+            settings_panel_marker: { selectors: ["div[role='radiogroup']", "div[class*='ratio']"] },
+            model_picker_button: { selectors: ["button[data-testid='model-picker']", "button[class*='model']"] }
+          },
+          image_url_pattern: {
+            url_substring: 'getMediaUrlRedirect',
+            fallback: 'mediaurl'
           },
           video_durations: {
             default: ['4s', '6s', '8s'],
@@ -1068,6 +1075,88 @@ app.post('/api/v1/workflows/:wfId/reset', (req, res) => {
   const wf = _workflows.find(w => w.wf_id === req.params.wfId);
   if (wf) { wf.status = 'idle'; wf.updated_at = new Date().toISOString(); }
   res.json({ success: true, data: wf || {} });
+});
+
+// ─── API: Workflow Execute (server plan) ──────────────────────────────────────
+app.post('/api/v1/workflows/:wfId/execute', (req, res) => {
+  const wf = _workflows.find(w => w.wf_id === req.params.wfId);
+  if (!wf) return res.status(404).json({ success: false, error: 'Workflow not found' });
+  const nodes = _wfNodes[req.params.wfId] || [];
+  const edges = _wfEdges[req.params.wfId] || [];
+  const enabledNodes = nodes.filter(n => n.enabled !== false);
+  if (!enabledNodes.length) return res.json({ success: true, data: { plan: null, error: 'EMPTY_WORKFLOW' } });
+
+  // Topological sort: group nodes into levels based on edge dependencies
+  const inDegree = {};
+  const adjList = {};
+  enabledNodes.forEach(n => { inDegree[n.node_id] = 0; adjList[n.node_id] = []; });
+  edges.forEach(e => {
+    if (inDegree[e.target_node_id] !== undefined && adjList[e.source_node_id] !== undefined) {
+      inDegree[e.target_node_id]++;
+      adjList[e.source_node_id].push(e.target_node_id);
+    }
+  });
+
+  // BFS-based level assignment (Kahn's algorithm)
+  const levels = [];
+  let queue = enabledNodes.filter(n => inDegree[n.node_id] === 0).map(n => n.node_id);
+  const visited = new Set();
+  while (queue.length > 0) {
+    levels.push([...queue]);
+    queue.forEach(id => visited.add(id));
+    const nextQueue = [];
+    for (const nId of queue) {
+      for (const neighbor of (adjList[nId] || [])) {
+        inDegree[neighbor]--;
+        if (inDegree[neighbor] === 0 && !visited.has(neighbor)) nextQueue.push(neighbor);
+      }
+    }
+    queue = nextQueue;
+  }
+  // Detect cycles: if not all nodes visited
+  const cycleDetected = visited.size < enabledNodes.length;
+  if (cycleDetected) {
+    const unreachable = enabledNodes.filter(n => !visited.has(n.node_id)).map(n => n.node_id);
+    return res.json({ success: true, data: { plan: { cycle_detected: true, unreachable_node_ids: unreachable } } });
+  }
+
+  // Build steps array
+  const steps = [];
+  const providerSet = new Set();
+  levels.forEach((levelNodes, levelIdx) => {
+    levelNodes.forEach(nodeId => {
+      const node = enabledNodes.find(n => n.node_id === nodeId);
+      if (node) {
+        steps.push({
+          node_id: node.node_id,
+          node_type: node.type || node.node_type || 'text',
+          level_index: levelIdx,
+          provider: node.provider || node.platform || 'flow',
+        });
+        providerSet.add(node.provider || node.platform || 'flow');
+      }
+    });
+  });
+
+  const settingsOverride = req.body?.settings_override || {};
+  const executionId = `exec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const plan = {
+    execution_id: executionId,
+    workflow_id: req.params.wfId,
+    total_steps: steps.length,
+    level_count: levels.length,
+    is_mixed_providers: providerSet.size > 1,
+    applied_settings: {
+      parallel_execution: settingsOverride.parallel_execution ?? false,
+      stop_on_error: settingsOverride.stop_on_error ?? false,
+      max_retries: settingsOverride.max_retries ?? 0,
+    },
+    steps,
+  };
+  // Update workflow status
+  wf.status = 'running';
+  wf.updated_at = new Date().toISOString();
+  res.json({ success: true, data: { plan, prompt_count: steps.filter(s => s.node_type !== 'text' && s.node_type !== 'download').length || 1 } });
 });
 
 // ─── API: Workflow Nodes ──────────────────────────────────────────────────────
