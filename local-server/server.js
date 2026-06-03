@@ -230,7 +230,7 @@ app.get('/api/v1/providers/api-configs', (req, res) => {
             settings_button: { selectors: ["button[aria-label='Settings']", "button[aria-label='Cài đặt']"], icon_text: "tune" },
             icon_element: { selectors: ["i.google-symbols", "i[class*='google-symbols']", "span.material-symbols-outlined", "span.material-symbols-rounded"] },
             add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']", "button[aria-label='Thêm nội dung nghe nhìn']"] },
-            tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']", "[class*='Tile']", "img[src*='getMediaUrlRedirect']"] },
+            tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']", "[class*='Tile']", "img[src*='getMediaUrlRedirect']"], attribute: "data-tile-id" },
             settings_panel_candidates: { selectors: ["div[role='dialog']", "div[class*='settings']", "div[class*='panel']"] },
             settings_panel_marker: { selectors: ["div[role='radiogroup']", "div[class*='ratio']"] },
             model_picker_button: { selectors: ["button[data-testid='model-picker']", "button[class*='model']"] }
@@ -390,7 +390,7 @@ app.get('/api/v1/providers/dom-selectors', (req, res) => {
           settings_button: { selectors: ["button[aria-label='Settings']", "button[aria-label='Cài đặt']"], icon_text: "tune" },
           icon_element: { selectors: ["i.google-symbols", "i[class*='google-symbols']", "span.material-symbols-outlined", "span.material-symbols-rounded"] },
           add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']", "button[aria-label='Thêm nội dung nghe nhìn']"] },
-          tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']"] },
+          tile_container: { selectors: ["div[data-tile-id]", "[class*='tile']"], attribute: "data-tile-id" },
           media_url_pattern: { pattern: "https://lh3.googleusercontent.com/" },
           flow_agent_toggle_button: { selectors: ["button[aria-pressed]", "button[aria-label='Agent']"], icon_text: "smart_toy", button_text: ["Tác nhân", "Agent"] },
           flow_agent_instruction_done_button: { selectors: ["button[aria-label='Done']", "button[aria-label='Xong']"], button_text: ["Done", "Xong"] },
