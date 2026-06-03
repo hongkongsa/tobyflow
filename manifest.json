@@ -1,0 +1,117 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "manifest_version": 3,
+  "name": "TobyFlow - Auto Flow, Auto ChatGPT, Auto Grok & AI Workflow Automation",
+  "short_name": "Toby Flow",
+  "version": "1.1.7",
+  "description": "Auto Flow - Automate ChatGPT, Grok & Google Flow for AI image/video generation. Batch prompts, smart workflows, auto 2K/4K download.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["activeTab", "storage", "unlimitedStorage", "sidePanel", "scripting", "tabs", "downloads", "notifications", "alarms"],
+  "host_permissions": [
+    "https://labs.google/*",
+    "*://chatgpt.com/*",
+    "*://gemini.google.com/*",
+    "https://grok.com/*",
+    "https://*.grok.com/*",
+    "*://x.com/*",
+    "*://*.x.com/*",
+    "*://*.x.ai/*",
+    "http://localhost/*",
+    "*://storage.googleapis.com/*",
+    "*://flow-content.google/*",
+    "*://www.pinterest.com/*",
+    "*://www.youtube.com/*",
+    "*://www.tiktok.com/*",
+    "*://www.google.com/*",
+    "*://www.facebook.com/*",
+    "*://unsplash.com/*",
+    "*://www.etsy.com/*",
+    "*://pixabay.com/*",
+    "*://www.amazon.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self';"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "toggle-sidebar": {
+      "suggested_key": { "default": "Alt+S" },
+      "description": "Toggle sidebar"
+    },
+    "generate": {
+      "suggested_key": { "default": "Alt+G" },
+      "description": "Generate with current prompt"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://labs.google/fx/*"],
+      "js": [
+        "content.js"
+      ],
+      "css": [],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://labs.google/fx/*"],
+      "js": ["slate-bridge.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["http://localhost/auth/google/success*"],
+      "js": ["oauth-bridge.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://chatgpt.com/*"],
+      "js": ["chat-content-chatgpt.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://grok.com/*", "https://*.grok.com/*"],
+      "js": ["chat-content-grok.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://gemini.google.com/*"],
+      "js": ["chat-content-gemini.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sidebar.html",
+        "workflow-editor.html",
+        "workflow-template-editor.html",
+        "workflow-template-editor-init.js",
+        "angles-editor.html",
+        "effects-editor.html",
+        "settings.html",
+        "settings.css",
+        "settings-page.js",
+        "workflow-editor-init.js",
+        "angles-editor-init.js",
+        "effects-editor-init.js",
+        "angles-editor.css",
+        "src/**/*.js",
+        "src/**/*.css",
+        "lib/*.js",
+        "lib/*.css"
+      ],
+      "matches": ["https://labs.google/*"]
+    }
+  ]
+}

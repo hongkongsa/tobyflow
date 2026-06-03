@@ -1,0 +1,244 @@
+/* ===== Chat AI Modal (Phase X) - Gemini Style ===== */
+
+/* Overlay backdrop */
+.chat-ai-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+/* Modal container - Gemini style dark rounded box */
+.chat-ai-modal {
+  background: #303134;
+  border: none;
+  border-radius: 24px;
+  max-width: 520px;
+  width: 100%;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Input area - textarea container */
+.chat-ai-input-area {
+  padding: 4px 0 8px 0;
+}
+
+/* Textarea - minimal style */
+.chat-ai-textarea {
+  width: 100%;
+  background: transparent;
+  border: 0px !important;
+  color: #e8eaed;
+  font-size: 15px;
+  font-family: inherit;
+  padding: 10px;
+  resize: none;
+  line-height: 1.5;
+  height: auto;
+  min-height: 24px;
+  max-height: 160px;
+  outline: none;
+}
+
+.chat-ai-textarea::placeholder {
+  color: #9aa0a6;
+}
+
+/* Toolbar - bottom bar */
+.chat-ai-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 4px;
+}
+
+.chat-ai-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: visible;
+}
+
+.chat-ai-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Add image button - icon only */
+.chat-ai-img-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: #9aa0a6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.chat-ai-img-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8eaed;
+}
+
+.chat-ai-img-btn svg {
+  flex-shrink: 0;
+}
+
+/* Model select - pill style */
+.chat-ai-model-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  color: #e8eaed;
+  border: none;
+  border-radius: 16px;
+  padding: 6px 24px 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: background 150ms;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa0a6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+}
+
+.chat-ai-model-select:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.chat-ai-model-select option {
+  background: #303134;
+  color: #e8eaed;
+}
+
+/* Send button - arrow icon */
+.chat-ai-send-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: transparent;
+  color: #9aa0a6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.chat-ai-send-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8eaed;
+}
+
+.chat-ai-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Spinner trong send button */
+.chat-ai-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #9aa0a6;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: chat-ai-spin 0.6s linear infinite;
+}
+
+@keyframes chat-ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Inline thumbnails in toolbar */
+.chat-ai-images-list {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 200px;
+  overflow-x: auto;
+}
+
+.chat-ai-images-list:empty {
+  display: none;
+}
+
+.chat-ai-images-list::-webkit-scrollbar {
+  height: 3px;
+}
+
+.chat-ai-images-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-ai-images-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+/* Individual thumbnail - compact size for toolbar */
+.chat-ai-thumb {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #202124;
+}
+
+.chat-ai-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Remove button on thumbnail */
+.chat-ai-thumb-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(32, 33, 36, 0.95);
+  color: #e8eaed;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 150ms, background 150ms;
+  padding: 0;
+}
+
+.chat-ai-thumb-remove:hover {
+  transform: scale(1.1);
+  background: #ea4335;
+}
+
+.chat-ai-thumb-remove svg {
+  width: 8px;
+  height: 8px;
+}
