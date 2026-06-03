@@ -274,6 +274,12 @@ app.get('/api/v1/providers/api-configs', (req, res) => {
             image_mode: false
           },
           max_ref_images: { image: 1, video: 0, video_ingredients: 0 },
+          // Model labels for selectChatGPTModel — text matching in model menu
+          chatgpt_model_labels: {
+            'dall-e-3': 'DALL·E 3|DALL-E 3|DALL·E|dalle',
+            'gpt-4o': '4o|GPT-4o|Instant',
+            'o4-mini-high': 'o4-mini-high|Thinking'
+          },
           // ChatGPTConfig reads these keys to merge into flat config
           error_patterns: {
             rate_limit_error_text: 'You have sent too many messages',
@@ -373,20 +379,104 @@ app.get('/api/v1/providers/dom-selectors', (req, res) => {
       },
       chatgpt: {
         selectors: {
-          textarea: { selectors: ["textarea#prompt-textarea", "div[contenteditable='true']#prompt-textarea"] },
-          submit_button: { selectors: ["button[data-testid='send-button']", "button[aria-label='Send prompt']"] },
+          // Composer / editor (ProseMirror contenteditable div)
+          composer: { selectors: ["div.ProseMirror#prompt-textarea", "div#prompt-textarea[contenteditable='true']", "div[contenteditable='true']#prompt-textarea"] },
+          textarea: { selectors: ["div#prompt-textarea", "textarea#prompt-textarea", "div[contenteditable='true']#prompt-textarea"] },
+          // Submit / Send button
+          submit_button: { selectors: ["button[data-testid='send-button']", "button#composer-submit-button", "button[aria-label='Send prompt']", "button.composer-submit-btn"] },
+          // Model switcher dropdown
+          model_switcher_button: { selectors: ["button[data-testid='model-switcher-dropdown-button']", "button[aria-label='Model selector']"] },
+          // Composer plus button (attach files menu)
+          plus_button: { selectors: ["button[data-testid='composer-plus-btn']", "button[aria-label='Add files and more']", "button[aria-label='Đính kèm tệp và nhiều tính năng khác']"] },
+          // Open menu (dropdown from plus button)
+          open_menu: { selectors: ["div[data-radix-popper-content-wrapper] [role='menu']", "div[role='menu']", "div[data-radix-menu-content]"] },
+          // Menu items inside the dropdown
+          menu_items: { selectors: ["div[role='menu'] [role='menuitemcheckbox']", "div[role='menu'] [role='menuitem']", "div[role='menu'] [role='menuitemradio']"] },
+          // Mode menu item (for model selection menu)
+          mode_menu_item: { selectors: ["[role='menuitemradio']", "[role='option']"] },
+          // Ratio button (appears when image mode is active)
+          ratio_button: { selectors: ["button[data-testid='image-aspect-ratio-button']", "button[aria-label*='aspect']", "button[aria-label*='ratio']"] },
+          // New chat button
+          new_chat_button: { selectors: ["a[data-testid='create-new-chat-button']", "button[data-testid='create-new-chat-button']", "a[aria-label='New chat']"] },
+          // Stop generating button
+          stop_button: { selectors: ["button[data-testid='stop-button']", "button[aria-label='Stop generating']", "button[aria-label='Stop']"] },
+          // Response containers
           response_container: { selectors: ["div[data-message-author-role='assistant']"] },
-          image_container: { selectors: ["img[alt='Generated image']", "img[data-testid='generated-image']"] }
+          response_text_content: { selectors: ["div[data-message-author-role='assistant'] .markdown", "div[data-message-author-role='assistant'] .whitespace-pre-wrap"] },
+          // Image generation results
+          generated_image: { selectors: ["img[alt='Generated image']", "img[data-testid='generated-image']", "div[data-message-author-role='assistant'] img[src*='oaidalleapi']", "div[data-message-author-role='assistant'] img[alt]"] },
+          image_container: { selectors: ["img[alt='Generated image']", "img[data-testid='generated-image']"] },
+          // Generating/thinking indicators
+          generating_indicator: { selectors: ["button[data-testid='stop-button']", "div[class*='result-streaming']", "div[class*='agent-turn']"] },
+          thinking_indicator: { selectors: ["div[class*='thinking']", "details.thought-container"] },
+          // Conversation turns
+          assistant_turn: { selectors: ["div[data-message-author-role='assistant']"] },
+          conversation_turn: { selectors: ["div[data-testid^='conversation-turn-']", "div[data-message-id]"] },
+          message_author: { selectors: ["div[data-message-author-role]"] },
+          // File/image upload
+          file_input: { selectors: ["input[data-testid='upload-photos-input']", "input[type='file']"] },
+          remove_ref_image_button: { selectors: ["button[aria-label='Remove file']", "button[aria-label='Remove']"] },
+          // Image action buttons (download, etc.)
+          image_action_buttons: { selectors: ["div[data-message-author-role='assistant'] button[aria-label]"] },
+          // ParaGen container
+          paragen_container: { selectors: ["div[class*='paragen']", "div[data-testid*='paragen']"] },
+          // CDN image pattern
+          cdn_image: { selectors: ["img[src*='oaidalleapi']", "img[src*='openai']"] },
+          // Cloudflare challenge
+          cloudflare_iframe: { selectors: ["iframe[src*='challenges.cloudflare.com']"] },
+          challenge_overlay: { selectors: ["div[id*='challenge']", "div[class*='challenge']"] },
+          // Delete chat
+          delete_chat_menu_item: { selectors: ["[role='menuitem'][data-testid*='delete']", "[role='menuitem']"] }
         },
-        name: 'ChatGPT', status: 'active', config_version: 2
+        name: 'ChatGPT', status: 'active', config_version: 3
       },
       grok: {
         selectors: {
-          editor: { selectors: ["div.ProseMirror[contenteditable='true']", "div[role='textbox']"] },
+          // Composer (ProseMirror or contenteditable)
+          composer: { selectors: ["div[aria-label='Ask Grok anything']", "div.ProseMirror[contenteditable='true']", "div[contenteditable='true'][role='textbox']", "div[role='textbox']"] },
+          editor: { selectors: ["div[aria-label='Ask Grok anything']", "div.ProseMirror[contenteditable='true']", "div[role='textbox']"] },
+          // Submit button
           submit_button: { selectors: ["button[aria-label='Submit']", "button[type='submit']"] },
-          response_container: { selectors: ["div[class*='response']", "div[class*='message']"] }
+          // Generation mode (Image/Video toggle)
+          generation_mode: { selectors: ["button[aria-label='Canvas']", "button:has(> div:contains('Image'))"] },
+          // Ratio button
+          ratio_button: { selectors: ["button[aria-label='Aspect Ratio']"] },
+          // Image quality picker
+          image_quality_picker: { selectors: ["button[aria-label='Quality']", "button[aria-label='Image Quality']"] },
+          // Video duration/resolution
+          video_duration_picker: { selectors: ["button[aria-label='Duration']"] },
+          video_resolution_picker: { selectors: ["button[aria-label='Resolution']"] },
+          // Result containers
+          result_container: { selectors: ["div[class*='message']", "div[class*='response']"] },
+          result_feed_section: { selectors: ["div[class*='feed']", "section[class*='result']"] },
+          // CDN images
+          grok_cdn_image: { selectors: ["img[src*='x.ai']", "img[src*='grok']"] },
+          // Stop button
+          stop_button: { selectors: ["button[aria-label='Stop']", "button[aria-label='Cancel']"] },
+          // Open menu
+          open_menu: { selectors: ["div[role='menu']", "div[role='listbox']"] },
+          // File input
+          file_input: { selectors: ["input[type='file']"] },
+          // Upload indicators
+          upload_loading_indicator: { selectors: ["div[class*='loading']", "div[class*='upload']"] },
+          upload_error_icon: { selectors: ["div[class*='error']"] },
+          // Remove image button
+          remove_image_button: { selectors: ["button[aria-label='Remove']", "button[aria-label='Delete']"] },
+          remove_image_button_broad: { selectors: ["button[class*='remove']", "button[class*='delete']"] },
+          // Saved/liked button
+          saved_button: { selectors: ["button[aria-label='Save']", "button[aria-label='Like']"] },
+          // Navigation
+          imagine_link: { selectors: ["a[href*='/imagine']", "a[href*='imagine']"] },
+          back_button: { selectors: ["button[aria-label='Back']", "a[aria-label='Back']"] },
+          // Auth
+          auth_link: { selectors: ["a[href*='login']", "button:has-text('Sign in')"] },
+          // Cloudflare
+          cloudflare_turnstile: { selectors: ["div[id*='turnstile']", "div[class*='turnstile']"] },
+          cloudflare_iframe: { selectors: ["iframe[src*='challenges.cloudflare.com']"] },
+          // Age verification
+          age_verification_modal: { selectors: ["div[role='dialog']", "div[class*='modal']"] }
         },
-        name: 'Grok', status: 'active', config_version: 2
+        name: 'Grok', status: 'active', config_version: 3
       },
       gemini: { selectors: {}, name: 'Gemini', status: 'active', config_version: 1 }
     },
@@ -575,9 +665,19 @@ app.get('/api/v1/templates/categories', (req, res) => {
 app.get('/api/v1/templates', (req, res) => {
   res.json({
     success: true,
-    data: [],
-    meta: { total: 0, page: 1, per_page: 20 }
+    data: [
+      { id: 1, name: 'Phong cảnh thiên nhiên', prompt: 'Beautiful natural landscape with mountains and rivers, photorealistic, 8K', category: 'landscape', media_type: 'Image', difficulty: 'easy', is_premium: false, usage_count: 150, rating: 4.5, author: 'TobyFlow', preview_url: '' },
+      { id: 2, name: 'Logo công nghệ', prompt: 'Professional minimalist tech company logo, flat design, modern', category: 'design', media_type: 'Image', difficulty: 'medium', is_premium: false, usage_count: 89, rating: 4.2, author: 'TobyFlow', preview_url: '' },
+      { id: 3, name: 'Chân dung nghệ thuật', prompt: 'Artistic portrait, oil painting style, dramatic lighting, renaissance', category: 'portrait', media_type: 'Image', difficulty: 'hard', is_premium: true, usage_count: 200, rating: 4.8, author: 'TobyFlow', preview_url: '' }
+    ],
+    meta: { total: 3, page: 1, per_page: 20 }
   });
+});
+app.post('/api/v1/templates/:id/use', (req, res) => {
+  res.json({ success: true, data: { template_id: req.params.id, used_at: new Date().toISOString() } });
+});
+app.post('/api/v1/templates/:id/rate', (req, res) => {
+  res.json({ success: true, data: { template_id: req.params.id, rating: req.body.rating } });
 });
 
 // ─── API: Settings (user settings sync) ──────────────────────────────────────
@@ -841,6 +941,17 @@ app.get('/api/v1/history', (req, res) => {
   });
 });
 
+// ─── API: History PATCH/DELETE ─────────────────────────────────────────────────
+app.patch('/api/v1/history/:id/favorite', (req, res) => {
+  const item = _history.find(h => h.id === parseInt(req.params.id));
+  if (item) { item.is_favorite = !item.is_favorite; }
+  res.json({ success: true, data: item || {} });
+});
+app.delete('/api/v1/history/:id', (req, res) => {
+  _history = _history.filter(h => h.id !== parseInt(req.params.id));
+  res.json({ success: true });
+});
+
 // ─── API: Execution Complete/Cancel ───────────────────────────────────────────
 app.post('/api/v1/execution/complete', (req, res) => {
   res.json({ success: true, data: { status: 'completed' } });
@@ -887,8 +998,21 @@ let _userPrompts = [
 ];
 let _promptIdCounter = 3;
 
+// Route variants: source code calls GET/POST /prompts, PUT/DELETE /prompts/:id
+// Keep /prompts/user aliases for backward compatibility
 app.get('/api/v1/prompts/user', (req, res) => {
-  res.json({ success: true, data: _userPrompts });
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
+  const paged = _userPrompts.slice(start, start + perPage);
+  res.json({ success: true, data: paged, meta: { current_page: page, last_page: Math.ceil(_userPrompts.length / perPage) || 1, per_page: perPage, total: _userPrompts.length } });
+});
+app.get('/api/v1/prompts', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
+  const paged = _userPrompts.slice(start, start + perPage);
+  res.json({ success: true, data: paged, meta: { current_page: page, last_page: Math.ceil(_userPrompts.length / perPage) || 1, per_page: perPage, total: _userPrompts.length } });
 });
 app.post('/api/v1/prompts/user', (req, res) => {
   const promptId = `prompt_${Date.now()}_${_promptIdCounter++}`;
@@ -904,8 +1028,35 @@ app.post('/api/v1/prompts/user', (req, res) => {
   _userPrompts.unshift(prompt);
   res.json({ success: true, data: prompt });
 });
+app.post('/api/v1/prompts', (req, res) => {
+  const promptId = `prompt_${Date.now()}_${_promptIdCounter++}`;
+  const prompt = {
+    id: _promptIdCounter, prompt_id: promptId,
+    name: req.body.name || 'Untitled',
+    text: req.body.text || req.body.prompt || '',
+    tags: req.body.tags || [],
+    is_favorite: false,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    ...req.body
+  };
+  _userPrompts.unshift(prompt);
+  res.json({ success: true, data: prompt });
+});
+app.put('/api/v1/prompts/:id', (req, res) => {
+  const idx = _userPrompts.findIndex(p => p.id === parseInt(req.params.id) || p.prompt_id === req.params.id);
+  if (idx >= 0) {
+    _userPrompts[idx] = { ..._userPrompts[idx], ...req.body, updated_at: new Date().toISOString() };
+    res.json({ success: true, data: _userPrompts[idx] });
+  } else {
+    res.status(404).json({ success: false, error: 'Prompt not found' });
+  }
+});
 app.delete('/api/v1/prompts/user/:promptId', (req, res) => {
   _userPrompts = _userPrompts.filter(p => p.prompt_id !== req.params.promptId);
+  res.json({ success: true });
+});
+app.delete('/api/v1/prompts/:id', (req, res) => {
+  _userPrompts = _userPrompts.filter(p => p.id !== parseInt(req.params.id) && p.prompt_id !== req.params.id);
   res.json({ success: true });
 });
 
@@ -1040,7 +1191,194 @@ app.post('/api/v1/execution/request', (req, res) => {
 app.post('/api/v1/usage/heartbeat', (req, res) => res.json({ success: true }));
 app.post('/api/v1/usage/session-end', (req, res) => res.json({ success: true }));
 app.post('/api/v1/usage/session-start', (req, res) => res.json({ success: true }));
+app.post('/api/v1/usage/events', (req, res) => res.json({ success: true }));
+app.post('/api/v1/usage/track', (req, res) => res.json({ success: true }));
+app.post('/api/v1/usage/sync-daily', (req, res) => res.json({ success: true }));
+app.post('/api/v1/usage/sync-offline', (req, res) => res.json({ success: true }));
 app.post('/api/v1/analytics/event', (req, res) => res.json({ success: true }));
+
+// ─── API: Google Auth (link/unlink) ────────────────────────────────────────────
+app.post('/api/v1/auth/google/link', (req, res) => {
+  res.json({ success: true, data: { linked: true, email: 'user@gmail.com' } });
+});
+app.post('/api/v1/auth/google/unlink', (req, res) => {
+  res.json({ success: true, data: { linked: false } });
+});
+
+// ─── API: Preferred Currency ───────────────────────────────────────────────────
+app.patch('/api/v1/auth/me/preferred-currency', (req, res) => {
+  res.json({ success: true, data: { preferred_currency: req.body?.currency || 'VND' } });
+});
+
+// ─── API: Angle Presets ────────────────────────────────────────────────────────
+app.get('/api/v1/angle-presets', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, name: 'Góc trước', value: 'front-view', icon: '🔲', sort_order: 1 },
+      { id: 2, name: 'Góc trên', value: 'top-view', icon: '🔝', sort_order: 2 },
+      { id: 3, name: 'Góc bên', value: 'side-view', icon: '➡️', sort_order: 3 },
+      { id: 4, name: 'Góc 45°', value: '45-degree', icon: '📐', sort_order: 4 },
+      { id: 5, name: 'Close-up', value: 'close-up', icon: '🔍', sort_order: 5 },
+      { id: 6, name: 'Wide shot', value: 'wide-shot', icon: '🌄', sort_order: 6 }
+    ]
+  });
+});
+
+// ─── API: Referral ─────────────────────────────────────────────────────────────
+app.get('/api/v1/referral/code', (req, res) => {
+  res.json({ success: true, data: { code: 'TOBY-REF-12345', url: 'https://tobyflow.com/ref/TOBY-REF-12345' } });
+});
+app.get('/api/v1/referral/stats', (req, res) => {
+  res.json({ success: true, data: { total_referrals: 0, successful_referrals: 0, pending_rewards: 0, earned_rewards: 0 } });
+});
+
+// ─── API: Telegram (full) ──────────────────────────────────────────────────────
+app.get('/api/v1/telegram/link/status', (req, res) => {
+  res.json({ success: true, data: { linked: false, chat_id: null, username: null } });
+});
+app.post('/api/v1/telegram/notify-completion', (req, res) => {
+  res.json({ success: true });
+});
+app.post('/api/v1/telegram/result', (req, res) => {
+  res.json({ success: true });
+});
+app.post('/api/v1/telegram/send-workflow-images', (req, res) => {
+  res.json({ success: true });
+});
+
+// ─── API: Webhook Settings ─────────────────────────────────────────────────────
+app.get('/api/v1/webhook-settings', (req, res) => {
+  res.json({ success: true, data: { enabled: false, url: null, events: [] } });
+});
+
+// ─── API: Execution Start ──────────────────────────────────────────────────────
+app.post('/api/v1/executions/start', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      execution_id: 'exec_' + Date.now(),
+      token: 'exec_token_' + Math.random().toString(36).substring(7),
+      status: 'started',
+      started_at: new Date().toISOString()
+    }
+  });
+});
+
+// ─── API: History (POST - save execution result) ───────────────────────────────
+app.post('/api/v1/history', (req, res) => {
+  const { provider, prompt, status, images, execution_id } = req.body || {};
+  res.json({
+    success: true,
+    data: {
+      id: Date.now(),
+      provider: provider || 'flow',
+      prompt: prompt || '',
+      status: status || 'completed',
+      images: images || [],
+      execution_id: execution_id || null,
+      created_at: new Date().toISOString()
+    }
+  });
+});
+
+// ─── API: Results Sync ─────────────────────────────────────────────────────────
+app.post('/api/v1/results/sync', (req, res) => {
+  res.json({ success: true, data: { synced: true, count: req.body?.results?.length || 0 } });
+});
+
+// ─── API: Orders ───────────────────────────────────────────────────────────────
+app.post('/api/v1/orders', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      order_id: 'order_' + Date.now(),
+      status: 'pending',
+      plan: req.body?.plan || 'pro',
+      amount: req.body?.amount || 0,
+      currency: req.body?.currency || 'VND',
+      payment_url: null,
+      created_at: new Date().toISOString()
+    }
+  });
+});
+app.post('/api/v1/orders/upgrade-quote', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      plan: req.body?.plan || 'pro',
+      price: 99000,
+      currency: 'VND',
+      discount: 0,
+      total: 99000,
+      period: 'monthly'
+    }
+  });
+});
+
+// ─── API: Image Effects ────────────────────────────────────────────────────────
+app.get('/api/v1/image-effects', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 1, name: 'Cinematic Film', slug: 'cinematic-film', category: 'Color Grading', base_prompt: 'Apply cinematic film color grading with orange and teal tones, {intensity} contrast, subtle film grain', intensity_keywords: { '25': 'very subtle', '50': 'moderate', '75': 'strong', '100': 'intense dramatic' }, default_intensity: 75 },
+      { id: 2, name: 'Vintage 70s', slug: 'vintage-70s', category: 'Color Grading', base_prompt: 'Transform with 1970s vintage film look, {intensity} faded colors, warm yellow cast, light leaks', intensity_keywords: { '25': 'subtle', '50': 'noticeable', '75': 'prominent', '100': 'heavy' }, default_intensity: 65 },
+      { id: 10, name: 'Golden Hour', slug: 'golden-hour', category: 'Light', base_prompt: 'Apply golden hour lighting with warm orange-gold sunlight, {intensity} soft glow, lens flare', intensity_keywords: { '25': 'subtle hint of', '50': 'moderate', '75': 'prominent', '100': 'intense' }, default_intensity: 70 },
+      { id: 11, name: 'Neon Glow', slug: 'neon-glow', category: 'Light', base_prompt: 'Add neon light glow effect with {intensity} pink and cyan rim lighting, cyberpunk atmosphere', intensity_keywords: { '25': 'subtle', '50': 'moderate', '75': 'vibrant', '100': 'intense' }, default_intensity: 75 },
+      { id: 20, name: 'Rain', slug: 'rain', category: 'Weather', base_prompt: 'Add {intensity} rain effect with visible raindrops, wet reflective surfaces, moody atmosphere', intensity_keywords: { '25': 'light drizzle', '50': 'steady', '75': 'heavy', '100': 'torrential' }, default_intensity: 60 },
+      { id: 30, name: 'Watercolor', slug: 'watercolor', category: 'Artistic', base_prompt: 'Transform to watercolor painting style with {intensity} soft brush strokes, fluid colors', intensity_keywords: { '25': 'subtle', '50': 'moderate', '75': 'strong', '100': 'heavy' }, default_intensity: 75 }
+    ]
+  });
+});
+
+// ─── API: Notifications Extended ───────────────────────────────────────────────
+app.post('/api/v1/notifications/mark-all-read', (req, res) => {
+  _notifications.forEach(n => { n.read = true; });
+  res.json({ success: true });
+});
+app.get('/api/v1/notifications/unread-count', (req, res) => {
+  const count = _notifications.filter(n => !n.read).length;
+  res.json({ success: true, data: { count } });
+});
+app.put('/api/v1/notifications/:id/read', (req, res) => {
+  const n = _notifications.find(n => n.id === parseInt(req.params.id));
+  if (n) n.read = true;
+  res.json({ success: true });
+});
+
+// ─── API: Payment Settings ─────────────────────────────────────────────────────
+app.get('/api/v1/payment-settings/providers', (req, res) => {
+  res.json({
+    success: true,
+    data: [
+      { id: 'vietqr', name: 'VietQR', enabled: true, type: 'bank_transfer' },
+      { id: 'stripe', name: 'Stripe', enabled: true, type: 'card' },
+      { id: 'paypal', name: 'PayPal', enabled: false, type: 'wallet' }
+    ]
+  });
+});
+
+// ─── API: Projects ─────────────────────────────────────────────────────────────
+app.get('/api/v1/projects/names', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+app.post('/api/v1/projects/sync', (req, res) => {
+  res.json({ success: true, data: { synced: true } });
+});
+
+// ─── API: Workflow Shares ──────────────────────────────────────────────────────
+app.get('/api/v1/workflows/:wfId/shares', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+app.post('/api/v1/workflows/:wfId/shares', (req, res) => {
+  res.json({ success: true, data: { share_id: 'share_' + Date.now(), wf_id: req.params.wfId, shared_to: req.body.email, permission: req.body.permission || 'view', created_at: new Date().toISOString() } });
+});
+app.post('/api/v1/workflow-shares/:shareId/reject', (req, res) => {
+  res.json({ success: true });
+});
+app.post('/api/v1/workflow-shares/:token/accept', (req, res) => {
+  res.json({ success: true, data: { workflow: { wf_id: 'wf_shared_001', name: 'Shared Workflow' } } });
+});
 
 // ─── Fallback catch-all ────────────────────────────────────────────────────────
 app.use((req, res) => {
