@@ -133,6 +133,24 @@ app.get('/api/v1/entitlements', (req, res) => {
   });
 });
 
+// Alias for /auth/entitlements (SW calls this path)
+app.get('/api/v1/auth/entitlements', (req, res) => {
+  res.json({
+    plan: 'pro',
+    features: {
+      gen_enabled: true, chatgpt_enabled: true, grok_enabled: true,
+      tasks_enabled: true, workflows_enabled: true, workflow_share_enabled: true,
+      angles_enabled: true, effects_enabled: true, auto_download: true,
+      retry_on_fail: true, ref_images: true, history_enabled: true,
+    },
+    limits: {
+      gen_run_max: -1, chatgpt_run_max: 50, grok_run_max: 50,
+      tasks_max: 20, workflows_max: 10, workflows_run_max: 20,
+    },
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+  });
+});
+
 // ─── Config ──────────────────────────────────────────────────────────
 app.get('/api/v1/config/versions', (req, res) => {
   res.json(configVersions);
@@ -357,6 +375,46 @@ app.get('/api/v1/config/validation-rules', (req, res) => {
     max_batch_items: 100,
     max_workflow_nodes: 20,
   });
+});
+
+// ─── Missing endpoint aliases (called by Service Worker) ─────────────
+app.post('/api/v1/albums/delete', (req, res) => res.json({ success: true }));
+app.post('/api/v1/history/delete', (req, res) => res.json({ success: true }));
+app.post('/api/v1/history/clear', (req, res) => res.json({ success: true }));
+app.post('/api/v1/photos/download', (req, res) => res.json({ success: true }));
+app.post('/api/v1/photos/delete', (req, res) => res.json({ success: true }));
+app.post('/api/v1/workflows/run', (req, res) => res.json({ success: true }));
+app.post('/api/v1/workflows/delete', (req, res) => res.json({ success: true }));
+app.post('/api/v1/telegram/connect', (req, res) => res.json({ success: true }));
+app.post('/api/v1/telegram/disconnect', (req, res) => res.json({ success: true }));
+app.post('/api/v1/telegram/commands', (req, res) => res.json({ success: true, command: req.body }));
+app.post('/api/v1/telegram/commands/toggle', (req, res) => res.json({ success: true }));
+app.post('/api/v1/telegram/commands/delete', (req, res) => res.json({ success: true }));
+
+app.get('/api/v1/albums', (req, res) => {
+  res.json({ albums: [
+    { id: 'album_1', name: 'Default', photo_count: 3, thumbnail: null, created_at: new Date().toISOString() },
+    { id: 'album_2', name: 'Favorites', photo_count: 5, thumbnail: null, created_at: new Date().toISOString() },
+  ]});
+});
+
+app.post('/api/v1/albums', (req, res) => {
+  res.json({ id: 'album_' + Date.now(), name: req.body.name, photo_count: 0, thumbnail: null, created_at: new Date().toISOString() });
+});
+
+app.get('/api/v1/albums/:id/photos', (req, res) => {
+  res.json({ photos: [
+    { id: 'photo_1', url: 'https://picsum.photos/200', prompt: 'test prompt 1', provider: 'flow', created_at: new Date().toISOString() },
+    { id: 'photo_2', url: 'https://picsum.photos/201', prompt: 'test prompt 2', provider: 'chatgpt', created_at: new Date().toISOString() },
+  ]});
+});
+
+app.get('/api/v1/history', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  res.json({ records: [
+    { id: 'exec_1', prompt: 'a cute cat', provider: 'flow', status: 'success', results: [{ url: 'https://picsum.photos/300' }], created_at: new Date(Date.now() - 60000).toISOString() },
+    { id: 'exec_2', prompt: 'mountain landscape', provider: 'chatgpt', status: 'success', results: [{ url: 'https://picsum.photos/301' }], created_at: new Date(Date.now() - 120000).toISOString() },
+  ], has_more: page < 2 });
 });
 
 // ─── Health ──────────────────────────────────────────────────────────

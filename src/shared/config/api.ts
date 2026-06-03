@@ -4,11 +4,7 @@
  * In production, point to labs.toby.vn
  */
 
-const isDev = import.meta.env?.DEV ?? false;
-
-export const API_BASE_URL = isDev
-  ? 'http://localhost:3001/api/v1'
-  : 'https://labs.toby.vn/api/v1';
+export const API_BASE_URL = 'http://localhost:3001/api/v1';
 
 export const API_ENDPOINTS = {
   // Auth
