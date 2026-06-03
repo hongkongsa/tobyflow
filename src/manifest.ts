@@ -43,6 +43,21 @@ export default defineManifest({
       js: ['src/content-scripts/flow/index.ts'],
       run_at: 'document_idle',
     },
+    {
+      matches: ['https://chatgpt.com/*', 'https://chat.openai.com/*'],
+      js: ['src/content-scripts/chatgpt/index.ts'],
+      run_at: 'document_idle',
+    },
+    {
+      matches: ['https://grok.com/*', 'https://x.ai/*'],
+      js: ['src/content-scripts/grok/index.ts'],
+      run_at: 'document_idle',
+    },
+    {
+      matches: ['https://gemini.google.com/*'],
+      js: ['src/content-scripts/gemini/index.ts'],
+      run_at: 'document_idle',
+    },
   ],
 
   action: {

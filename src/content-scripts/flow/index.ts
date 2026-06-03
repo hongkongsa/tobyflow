@@ -1,129 +1,308 @@
 /**
- * Content Script — Google Flow (labs.google / aitestkitchen.withgoogle.com)
- * 
- * Responsibilities:
- * - Submit prompts to Flow's Slate editor
- * - Monitor tile generation (success/failed/processing)
- * - Download completed tiles
- * - Upload reference images
- * - Retry failed tiles (3-tier system)
- * - Show execution blocker overlay
+ * Flow Content Script — DOM automation for Google Flow (labs.google.com/fx)
+ * Handles prompt injection, tile monitoring, result extraction
  */
 
 import { SelectorResolver } from '../shared/selector-system';
 
-// Re-injection guard
-if ((self as any).__tobyflow_flow_loaded__) {
-  console.log('[Flow] Already loaded, skipping re-injection');
-} else {
-  (self as any).__tobyflow_flow_loaded__ = true;
-  initFlowContentScript();
+// ============ State ============
+interface FlowState {
+  ready: boolean;
+  submitting: boolean;
+  monitoring: boolean;
+  tileCount: number;
+  maxTiles: number;
 }
 
-async function initFlowContentScript(): Promise<void> {
-  const resolver = new SelectorResolver('flow');
+const state: FlowState = {
+  ready: false,
+  submitting: false,
+  monitoring: false,
+  tileCount: 0,
+  maxTiles: 8,
+};
 
-  // Wait for selector config from server
-  const ready = await resolver.waitForConfig();
-  if (!ready) {
-    showConfigErrorOverlay();
-    return;
-  }
+// ============ Selectors (dynamic, updated from server) ============
+const selectors = new SelectorResolver('flow', {
+  promptInput: 'textarea[aria-label], div[contenteditable="true"]',
+  submitButton: 'button[aria-label="Create"], button[data-test-id="submit"]',
+  tileContainer: '[class*="tile"], [class*="result"], [class*="gallery"]',
+  tileImage: 'img[src*="generated"], img[class*="tile"]',
+  tileLoading: '[class*="loading"], [class*="spinner"], [class*="pending"]',
+  ratioSelect: 'button[aria-label*="ratio"], [class*="ratio"] button',
+  modelSelect: '[class*="model"] select, button[aria-label*="model"]',
+  errorMessage: '[class*="error"], [role="alert"]',
+  uploadButton: 'button[aria-label*="upload"], input[type="file"]',
+});
 
-  console.log('[Flow] Content script initialized, selectors ready');
+// ============ DOM Utilities ============
+function waitForElement(selector: string, timeout = 10000): Promise<Element | null> {
+  return new Promise((resolve) => {
+    const existing = document.querySelector(selector);
+    if (existing) return resolve(existing);
 
-  // Listen for messages from background/sidepanel
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    handleMessage(message, resolver, sendResponse);
-    return true; // async response
+    const observer = new MutationObserver(() => {
+      const el = document.querySelector(selector);
+      if (el) {
+        observer.disconnect();
+        resolve(el);
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+    setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
   });
 }
 
-function handleMessage(
-  message: any,
-  resolver: SelectorResolver,
-  sendResponse: (response: any) => void
-): void {
-  switch (message.action) {
-    case 'flow:submit':
-      handleSubmit(message, resolver).then(sendResponse);
-      break;
-    case 'flow:scanTiles':
-      handleScanTiles(resolver).then(sendResponse);
-      break;
-    case 'flow:detectTileStatus':
-      handleDetectTileStatus(message, resolver).then(sendResponse);
-      break;
-    case 'flow:download':
-      handleDownload(message, resolver).then(sendResponse);
-      break;
-    case 'flow:uploadRef':
-      handleUploadRef(message, resolver).then(sendResponse);
-      break;
-    default:
-      sendResponse({ error: `Unknown action: ${message.action}` });
-  }
+function simulateTyping(element: HTMLElement, text: string, humanized = true): Promise<void> {
+  return new Promise((resolve) => {
+    if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
+      if (humanized) {
+        let i = 0;
+        const type = () => {
+          if (i < text.length) {
+            element.value += text[i];
+            element.dispatchEvent(new Event('input', { bubbles: true }));
+            i++;
+            setTimeout(type, 30 + Math.random() * 70);
+          } else {
+            resolve();
+          }
+        };
+        element.value = '';
+        type();
+      } else {
+        element.value = text;
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        resolve();
+      }
+    } else if (element.contentEditable === 'true') {
+      // ContentEditable (Slate/ProseMirror)
+      element.focus();
+      element.innerHTML = '';
+      if (humanized) {
+        let i = 0;
+        const type = () => {
+          if (i < text.length) {
+            document.execCommand('insertText', false, text[i]);
+            i++;
+            setTimeout(type, 30 + Math.random() * 70);
+          } else {
+            resolve();
+          }
+        };
+        type();
+      } else {
+        document.execCommand('insertText', false, text);
+        resolve();
+      }
+    } else {
+      resolve();
+    }
+  });
 }
 
-async function handleSubmit(
-  message: any,
-  resolver: SelectorResolver
-): Promise<{ success: boolean; error?: string }> {
+// ============ Core Actions ============
+async function checkReady(): Promise<{ ready: boolean; error?: string }> {
+  const promptEl = await waitForElement(selectors.get('promptInput'), 5000);
+  if (!promptEl) return { ready: false, error: 'Prompt input not found' };
+
+  const submitEl = document.querySelector(selectors.get('submitButton'));
+  if (!submitEl) return { ready: false, error: 'Submit button not found' };
+
+  state.ready = true;
+  return { ready: true };
+}
+
+async function submitPrompt(params: {
+  prompt: string;
+  ratio?: string;
+  quantity?: number;
+  model?: string;
+  humanized?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  if (state.submitting) return { success: false, error: 'Already submitting' };
+  state.submitting = true;
+
   try {
-    const editor = resolver.query('slate_editor');
-    if (!editor) {
-      return { success: false, error: 'Editor not found' };
+    // 1. Set ratio if specified
+    if (params.ratio) {
+      const ratioBtn = document.querySelector(selectors.get('ratioSelect'));
+      if (ratioBtn) {
+        (ratioBtn as HTMLElement).click();
+        await new Promise(r => setTimeout(r, 300));
+        const option = [...document.querySelectorAll('button, [role="option"]')]
+          .find(el => el.textContent?.includes(params.ratio!));
+        if (option) (option as HTMLElement).click();
+        await new Promise(r => setTimeout(r, 300));
+      }
     }
 
-    // TODO: Implement Slate editor interaction
-    // 1. Clear editor
-    // 2. Insert text
-    // 3. Click submit button
+    // 2. Type prompt
+    const promptEl = await waitForElement(selectors.get('promptInput'), 5000);
+    if (!promptEl) return { success: false, error: 'Prompt input not found' };
+
+    await simulateTyping(promptEl as HTMLElement, params.prompt, params.humanized !== false);
+    await new Promise(r => setTimeout(r, 500));
+
+    // 3. Click submit
+    const submitBtn = document.querySelector(selectors.get('submitButton'));
+    if (!submitBtn) return { success: false, error: 'Submit button not found' };
+
+    (submitBtn as HTMLElement).click();
+
+    // 4. Start monitoring tiles
+    state.monitoring = true;
+    startTileMonitor();
 
     return { success: true };
-  } catch (error) {
-    return { success: false, error: String(error) };
+  } catch (e) {
+    return { success: false, error: (e as Error).message };
+  } finally {
+    state.submitting = false;
   }
 }
 
-async function handleScanTiles(
-  resolver: SelectorResolver
-): Promise<{ tiles: string[] }> {
-  const tileElements = resolver.queryAll('tile_container');
-  const tileIds = tileElements
-    .map((el) => el.getAttribute('data-tile-id'))
-    .filter(Boolean) as string[];
-  return { tiles: tileIds };
+// ============ Tile Monitor ============
+let tileObserver: MutationObserver | null = null;
+
+function startTileMonitor() {
+  if (tileObserver) tileObserver.disconnect();
+
+  const checkTiles = () => {
+    const tiles = document.querySelectorAll(selectors.get('tileImage'));
+    const loadingTiles = document.querySelectorAll(selectors.get('tileLoading'));
+
+    const newCompletedUrls: string[] = [];
+    tiles.forEach(tile => {
+      const img = tile as HTMLImageElement;
+      if (img.src && img.complete && img.naturalWidth > 0) {
+        newCompletedUrls.push(img.src);
+      }
+    });
+
+    if (newCompletedUrls.length > state.tileCount) {
+      const newUrls = newCompletedUrls.slice(state.tileCount);
+      state.tileCount = newCompletedUrls.length;
+
+      // Report to background
+      chrome.runtime.sendMessage({
+        type: 'TILE_RESULTS',
+        payload: {
+          urls: newUrls,
+          total: newCompletedUrls.length,
+          loading: loadingTiles.length,
+          complete: loadingTiles.length === 0 && newCompletedUrls.length > 0,
+        },
+      });
+    }
+
+    // Check if all done
+    if (loadingTiles.length === 0 && newCompletedUrls.length > 0) {
+      state.monitoring = false;
+      if (tileObserver) {
+        tileObserver.disconnect();
+        tileObserver = null;
+      }
+    }
+  };
+
+  tileObserver = new MutationObserver(checkTiles);
+  tileObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['src', 'class'],
+  });
+
+  // Also poll periodically as backup
+  const pollInterval = setInterval(() => {
+    if (!state.monitoring) {
+      clearInterval(pollInterval);
+      return;
+    }
+    checkTiles();
+  }, 2000);
+
+  // Timeout after 5 minutes
+  setTimeout(() => {
+    if (state.monitoring) {
+      state.monitoring = false;
+      if (tileObserver) tileObserver.disconnect();
+      clearInterval(pollInterval);
+    }
+  }, 300000);
 }
 
-async function handleDetectTileStatus(
-  message: any,
-  resolver: SelectorResolver
-): Promise<{ status: 'success' | 'failed' | 'processing' | 'unknown' }> {
-  // TODO: Implement tile status detection
-  // 1. Check success: media element with valid src
-  // 2. Check processing: % marker text
-  // 3. Check failed: warning icon visible
-  return { status: 'unknown' };
+// ============ Upload Reference Image ============
+async function uploadRefImage(file: File): Promise<{ success: boolean; error?: string }> {
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+  if (!input) {
+    // Try to find and click upload button first
+    const uploadBtn = document.querySelector(selectors.get('uploadButton'));
+    if (uploadBtn) (uploadBtn as HTMLElement).click();
+    await new Promise(r => setTimeout(r, 500));
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    if (!fileInput) return { success: false, error: 'File input not found' };
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    return { success: true };
+  }
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  input.files = dt.files;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+  return { success: true };
 }
 
-async function handleDownload(
-  message: any,
-  resolver: SelectorResolver
-): Promise<{ success: boolean; error?: string }> {
-  // TODO: Implement download via context menu
-  return { success: false, error: 'Not implemented' };
+// ============ Message Listener ============
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const { type, payload } = message;
+
+  switch (type) {
+    case 'CHECK_READY':
+      checkReady().then(sendResponse);
+      return true;
+
+    case 'SUBMIT_PROMPT':
+      submitPrompt(payload).then(sendResponse);
+      return true;
+
+    case 'UPLOAD_REF_IMAGE':
+      // payload.fileData is base64
+      fetch(payload.fileData)
+        .then(r => r.blob())
+        .then(blob => new File([blob], payload.fileName))
+        .then(file => uploadRefImage(file))
+        .then(sendResponse);
+      return true;
+
+    case 'GET_STATUS':
+      sendResponse({
+        ready: state.ready,
+        submitting: state.submitting,
+        monitoring: state.monitoring,
+        tileCount: state.tileCount,
+      });
+      return false;
+
+    case 'STOP_MONITORING':
+      state.monitoring = false;
+      if (tileObserver) tileObserver.disconnect();
+      sendResponse({ success: true });
+      return false;
+  }
+});
+
+// ============ Init ============
+async function init() {
+  console.log('[TobyFlow/Flow] Content script loaded');
+  // Wait for page to be ready
+  await new Promise(r => setTimeout(r, 2000));
+  await checkReady();
+  chrome.runtime.sendMessage({ type: 'CONTENT_SCRIPT_READY', payload: { provider: 'flow' } });
 }
 
-async function handleUploadRef(
-  message: any,
-  resolver: SelectorResolver
-): Promise<{ success: boolean; tile_id?: string; error?: string }> {
-  // TODO: Implement ref image upload
-  return { success: false, error: 'Not implemented' };
-}
-
-function showConfigErrorOverlay(): void {
-  // TODO: Show "Internet connection lost" overlay with retry button
-  console.error('[Flow] Failed to load selector config');
-}
+init();
