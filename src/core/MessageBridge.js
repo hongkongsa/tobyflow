@@ -371,6 +371,14 @@ class MessageBridge {
   }
 
   /**
+   * Reset shouldStop flag trên content script — gọi trước khi bắt đầu execution mới.
+   * Fix bug: shouldStop từ lần stop/fail trước không được clear, abort insertText lần sau.
+   */
+  static async resetStop() {
+    return this.sendToContentScript('resetStop');
+  }
+
+  /**
    * Dừng quá trình đang chạy
    */
   static async stopExecution() {

@@ -1133,6 +1133,10 @@
         this._startHeartbeat(workflowId);
         this.isRunning = true;
         this.shouldStop = false;
+        // Reset shouldStop trên content script (fix bug: shouldStop từ lần fail trước block insertText/clickSubmit)
+        if (window.MessageBridge?.resetStop) {
+          window.MessageBridge.resetStop().catch(() => {});
+        }
         // Phase 2b: Start server tracking (will be completed in finally block)
         this._serverTrackingWfId = workflowId;
         // Phase 5.2: per-node submitted tracking thay vì global _nodeSubmitted
@@ -1924,6 +1928,10 @@
         this._startHeartbeat(workflowId);
         this.isRunning = true;
         this.shouldStop = false;
+        // Reset shouldStop trên content script (fix bug: shouldStop từ lần fail trước block insertText/clickSubmit)
+        if (window.MessageBridge?.resetStop) {
+          window.MessageBridge.resetStop().catch(() => {});
+        }
         // Phase 5.2: per-node submitted tracking thay vì global _nodeSubmitted
         this._submittedNodes = new Set();
         this._currentExecutionToken = null;
