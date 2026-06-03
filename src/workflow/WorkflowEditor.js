@@ -11123,6 +11123,10 @@ QUY TẮC:
         console.warn('[WorkflowEditor] Sync server response failed:', e?.message);
       }
 
+      if (_saveResult && _saveResult.wf_id && !workflowData.wf_id) {
+        workflowData.wf_id = _saveResult.wf_id;
+      }
+
       // Update this.workflow reference to match saved data (preserve nodes/edges for background scan)
       this.workflow = { ...workflowData, wf_name: workflowName || (window.I18n?.t('workflow.untitled') || 'Workflow không tên'), nodes, edges };
 
@@ -11901,7 +11905,7 @@ QUY TẮC:
         console.log('[WorkflowEditor] Template đã được tạo:', result.template);
 
         // Cập nhật state để chuyển sang edit mode cho template đã tạo
-        this.templateId = result.template.id;
+        this.templateId = result.template.id || result.template._id;
         this.templateData = {
           name: result.template.name,
           description: result.template.description || '',
