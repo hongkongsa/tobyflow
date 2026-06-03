@@ -46,7 +46,8 @@ app.get('/api/v1/system-config/execution', (req, res) => {
         rest_max_sec: 5
       },
       timing: {
-        delay_between_prompts_sec: 2
+        delay_between_prompts_sec: 5,
+        input_timeout_ms: 2000
       },
       flow_recovery: {
         session_refresh_enabled: false,
@@ -110,7 +111,17 @@ app.get('/api/v1/validation-rules', (req, res) => {
 
 // ─── API: Default settings ──────────────────────────────────────────────────
 app.get('/api/v1/default-settings', (req, res) => {
-  res.json({ success: true, data: {} });
+  res.json({
+    success: true,
+    data: {
+      humanizedMode: true,
+      humanizedSpeed: 0.5,
+      inputTimeout: 2000,
+      randomDelayMin: 3,
+      randomDelayMax: 8,
+      defaultVideoInputType: 'frames'
+    }
+  });
 });
 
 // ─── API: I18n ──────────────────────────────────────────────────────────────
@@ -681,7 +692,13 @@ app.post('/api/v1/templates/:id/rate', (req, res) => {
 });
 
 // ─── API: Settings (user settings sync) ──────────────────────────────────────
-let _userSettings = {};
+let _userSettings = {
+  humanizedMode: true,
+  humanizedSpeed: 0.5,
+  inputTimeout: 2000,
+  randomDelayMin: 3,
+  randomDelayMax: 8
+};
 app.get('/api/v1/settings', (req, res) => {
   res.json({ success: true, data: _userSettings });
 });
