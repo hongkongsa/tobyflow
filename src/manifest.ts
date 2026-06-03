@@ -25,6 +25,7 @@ export default defineManifest({
     'https://x.ai/*',
     'https://gemini.google.com/*',
     'https://labs.toby.vn/*',
+    'http://localhost:3001/*',
   ],
 
   background: {

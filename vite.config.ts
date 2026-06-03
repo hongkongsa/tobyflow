@@ -6,9 +6,16 @@ import manifest from './src/manifest';
 
 export default defineConfig({
   plugins: [
-    svelte(),
+    svelte({
+      compilerOptions: {
+        generate: 'client',
+      },
+    }),
     crx({ manifest }),
   ],
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -17,6 +24,7 @@ export default defineConfig({
       '@background': resolve(__dirname, 'src/background'),
       '@sidepanel': resolve(__dirname, 'src/sidepanel'),
     },
+    conditions: ['browser'],
   },
   build: {
     outDir: 'dist',

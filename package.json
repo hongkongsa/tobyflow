@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build",
+    "build:check": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/ --ext .ts,.svelte",
     "lint:fix": "eslint src/ --ext .ts,.svelte --fix",
@@ -13,7 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "dev:all": "concurrently \"pnpm server\" \"pnpm dev\""
   },
   "dependencies": {
     "dexie": "^4.0.0",
@@ -30,8 +33,10 @@
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "autoprefixer": "^10.4.0",
+    "cors": "^2.8.6",
     "eslint": "^9.0.0",
     "eslint-plugin-svelte": "^2.0.0",
+    "express": "^5.2.1",
     "playwright": "^1.48.0",
     "postcss": "^8.4.0",
     "prettier": "^3.4.0",
