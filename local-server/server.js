@@ -354,9 +354,39 @@ app.get('/api/v1/providers/dom-selectors', (req, res) => {
   res.json({
     success: true,
     data: {
-      flow: { selectors: {}, name: 'Flow', status: 'active', config_version: 1 },
-      chatgpt: { selectors: {}, name: 'ChatGPT', status: 'active', config_version: 1 },
-      grok: { selectors: {}, name: 'Grok', status: 'active', config_version: 1 },
+      flow: {
+        selectors: {
+          slate_editor: { selectors: ["div[data-slate-editor='true']"], fallback: "div[contenteditable='true']" },
+          submit_button: { selectors: ["button[aria-label='Submit prompt']", "button[aria-label='Create']"], icon_text: "arrow_forward" },
+          settings_button: { selectors: ["button[aria-label='Settings']"], icon_text: "tune" },
+          icon_element: { selectors: ["span.material-symbols-outlined", "span.material-symbols-rounded"] },
+          add_button: { selectors: ["button[aria-label='Add image or video']", "button[aria-label='Add']"] },
+          tile_container: { selectors: ["div[data-tile-id]", ".tile-container", "[class*='tile']"] },
+          media_url_pattern: { pattern: "https://lh3.googleusercontent.com/" },
+          flow_agent_toggle_button: { selectors: ["button[aria-label='Agent']"], icon_text: "smart_toy" },
+          flow_agent_instruction_done_button: { selectors: ["button[aria-label='Done']", "button:contains('Done')"] },
+          flow_chat_agent_close_button: { selectors: ["button[aria-label='Close']", "button[aria-label='Cancel']"] },
+          project_link: { selectors: ["a[href*='/project/']"] }
+        },
+        name: 'Flow', status: 'active', config_version: 2
+      },
+      chatgpt: {
+        selectors: {
+          textarea: { selectors: ["textarea#prompt-textarea", "div[contenteditable='true']#prompt-textarea"] },
+          submit_button: { selectors: ["button[data-testid='send-button']", "button[aria-label='Send prompt']"] },
+          response_container: { selectors: ["div[data-message-author-role='assistant']"] },
+          image_container: { selectors: ["img[alt='Generated image']", "img[data-testid='generated-image']"] }
+        },
+        name: 'ChatGPT', status: 'active', config_version: 2
+      },
+      grok: {
+        selectors: {
+          editor: { selectors: ["div.ProseMirror[contenteditable='true']", "div[role='textbox']"] },
+          submit_button: { selectors: ["button[aria-label='Submit']", "button[type='submit']"] },
+          response_container: { selectors: ["div[class*='response']", "div[class*='message']"] }
+        },
+        name: 'Grok', status: 'active', config_version: 2
+      },
       gemini: { selectors: {}, name: 'Gemini', status: 'active', config_version: 1 }
     },
     meta: { version: 1 }
@@ -549,7 +579,394 @@ app.get('/api/v1/templates', (req, res) => {
   });
 });
 
+// ─── API: Settings (user settings sync) ──────────────────────────────────────
+let _userSettings = {};
+app.get('/api/v1/settings', (req, res) => {
+  res.json({ success: true, data: _userSettings });
+});
+app.put('/api/v1/settings', (req, res) => {
+  if (req.body?.settings_json) {
+    _userSettings = { ..._userSettings, ...req.body.settings_json };
+  }
+  res.json({ success: true, data: _userSettings });
+});
 
+// ─── API: Workflows CRUD ──────────────────────────────────────────────────────
+let _workflows = [
+  {
+    id: 1, wf_id: 'wf_demo_001', wf_name: 'Demo Workflow - Landscape',
+    name: 'Demo Workflow - Landscape', description: 'Tạo ảnh phong cảnh tự động',
+    status: 'idle', enabled: true, platform: 'flow',
+    project_id: null, project_name: null,
+    nodes_count: 2, run_count: 5,
+    created_at: '2026-05-01T10:00:00Z', updated_at: '2026-06-01T10:00:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 2, wf_id: 'wf_demo_002', wf_name: 'Batch Portrait Generator',
+    name: 'Batch Portrait Generator', description: 'Chạy batch tạo ảnh chân dung',
+    status: 'idle', enabled: true, platform: 'flow',
+    project_id: null, project_name: null,
+    nodes_count: 3, run_count: 12,
+    created_at: '2026-04-15T08:30:00Z', updated_at: '2026-05-28T14:20:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  }
+];
+let _wfIdCounter = 3;
+
+app.get('/api/v1/workflows', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
+  const paged = _workflows.slice(start, start + perPage);
+  res.json({
+    success: true,
+    data: paged,
+    meta: { current_page: page, last_page: Math.ceil(_workflows.length / perPage) || 1, per_page: perPage, total: _workflows.length }
+  });
+});
+app.get('/api/v1/workflows/:wfId', (req, res) => {
+  const wf = _workflows.find(w => w.wf_id === req.params.wfId);
+  if (!wf) return res.status(404).json({ success: false, error: 'Workflow not found' });
+  res.json({ success: true, data: wf });
+});
+app.post('/api/v1/workflows', (req, res) => {
+  const wfId = `wf_${Date.now()}_${_wfIdCounter++}`;
+  const wf = {
+    id: _wfIdCounter, wf_id: wfId,
+    wf_name: req.body.name || req.body.wf_name || 'New Workflow',
+    name: req.body.name || req.body.wf_name || 'New Workflow',
+    description: req.body.description || '',
+    status: 'idle', enabled: true, platform: req.body.platform || 'flow',
+    project_id: req.body.project_id || null,
+    project_name: req.body.project_name || null,
+    nodes_count: 0, run_count: 0,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    user: { id: 1, name: 'Dev Admin (Local)' },
+    ...req.body
+  };
+  wf.wf_id = wfId;
+  _workflows.unshift(wf);
+  res.json({ success: true, data: wf });
+});
+app.put('/api/v1/workflows/:wfId', (req, res) => {
+  const idx = _workflows.findIndex(w => w.wf_id === req.params.wfId);
+  if (idx < 0) return res.status(404).json({ success: false, error: 'Workflow not found' });
+  _workflows[idx] = { ..._workflows[idx], ...req.body, updated_at: new Date().toISOString() };
+  res.json({ success: true, data: _workflows[idx] });
+});
+app.delete('/api/v1/workflows/:wfId', (req, res) => {
+  _workflows = _workflows.filter(w => w.wf_id !== req.params.wfId);
+  res.json({ success: true });
+});
+app.post('/api/v1/workflows/bulk-save', (req, res) => {
+  res.json({ success: true, data: { saved: 0 } });
+});
+app.post('/api/v1/workflows/:wfId/reset', (req, res) => {
+  const wf = _workflows.find(w => w.wf_id === req.params.wfId);
+  if (wf) { wf.status = 'idle'; wf.updated_at = new Date().toISOString(); }
+  res.json({ success: true, data: wf || {} });
+});
+
+// ─── API: Workflow Nodes ──────────────────────────────────────────────────────
+let _wfNodes = {};
+app.get('/api/v1/workflows/:wfId/nodes', (req, res) => {
+  res.json({ success: true, data: _wfNodes[req.params.wfId] || [] });
+});
+app.post('/api/v1/workflows/:wfId/nodes', (req, res) => {
+  const wfId = req.params.wfId;
+  if (!_wfNodes[wfId]) _wfNodes[wfId] = [];
+  const node = { id: Date.now(), node_id: `node_${Date.now()}`, ...req.body, created_at: new Date().toISOString() };
+  _wfNodes[wfId].push(node);
+  res.json({ success: true, data: node });
+});
+app.put('/api/v1/workflows/:wfId/nodes/:nodeId', (req, res) => {
+  const nodes = _wfNodes[req.params.wfId] || [];
+  const idx = nodes.findIndex(n => n.node_id === req.params.nodeId);
+  if (idx >= 0) nodes[idx] = { ...nodes[idx], ...req.body };
+  res.json({ success: true, data: idx >= 0 ? nodes[idx] : req.body });
+});
+app.delete('/api/v1/workflows/:wfId/nodes/:nodeId', (req, res) => {
+  if (_wfNodes[req.params.wfId]) {
+    _wfNodes[req.params.wfId] = _wfNodes[req.params.wfId].filter(n => n.node_id !== req.params.nodeId);
+  }
+  res.json({ success: true });
+});
+app.patch('/api/v1/workflows/:wfId/nodes/:nodeId/status', (req, res) => {
+  res.json({ success: true, data: { node_id: req.params.nodeId, ...req.body } });
+});
+
+// ─── API: Workflow Edges ──────────────────────────────────────────────────────
+let _wfEdges = {};
+app.get('/api/v1/workflows/:wfId/edges', (req, res) => {
+  res.json({ success: true, data: _wfEdges[req.params.wfId] || [] });
+});
+app.post('/api/v1/workflows/:wfId/edges', (req, res) => {
+  const wfId = req.params.wfId;
+  if (!_wfEdges[wfId]) _wfEdges[wfId] = [];
+  const edge = { id: Date.now(), edge_id: `edge_${Date.now()}`, ...req.body };
+  _wfEdges[wfId].push(edge);
+  res.json({ success: true, data: edge });
+});
+app.delete('/api/v1/workflows/:wfId/edges/:edgeId', (req, res) => {
+  if (_wfEdges[req.params.wfId]) {
+    _wfEdges[req.params.wfId] = _wfEdges[req.params.wfId].filter(e => e.edge_id !== req.params.edgeId);
+  }
+  res.json({ success: true });
+});
+
+// ─── API: Shared Workflows ────────────────────────────────────────────────────
+app.get('/api/v1/shared-workflows', (req, res) => {
+  res.json({ success: true, data: [], meta: { total: 0, page: 1, per_page: 20 } });
+});
+
+// ─── API: Tasks CRUD ──────────────────────────────────────────────────────────
+let _tasks = [
+  {
+    id: 1, task_id: 'task_demo_001', name: 'Tạo ảnh banner website',
+    prompt: 'Modern website banner with gradient colors, minimalist design',
+    provider: 'flow', status: 'completed', platform: 'flow',
+    settings: { ratio: '16:9', quantity: 2, model: 'flow-image' },
+    project_id: null, project_name: null,
+    file_ids: [], result_count: 2,
+    created_at: '2026-05-20T09:00:00Z', updated_at: '2026-05-20T09:15:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 2, task_id: 'task_demo_002', name: 'Chạy batch logo design',
+    prompt: 'Professional logo design, flat style, tech company',
+    provider: 'flow', status: 'pending', platform: 'flow',
+    settings: { ratio: '1:1', quantity: 4, model: 'flow-image' },
+    project_id: null, project_name: null,
+    file_ids: [], result_count: 0,
+    created_at: '2026-06-01T14:00:00Z', updated_at: '2026-06-01T14:00:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  }
+];
+let _taskIdCounter = 3;
+
+app.get('/api/v1/tasks', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
+  const paged = _tasks.slice(start, start + perPage);
+  res.json({
+    success: true,
+    data: paged,
+    meta: { current_page: page, last_page: Math.ceil(_tasks.length / perPage) || 1, per_page: perPage, total: _tasks.length }
+  });
+});
+app.get('/api/v1/tasks/:taskId', (req, res) => {
+  const task = _tasks.find(t => t.task_id === req.params.taskId);
+  if (!task) return res.status(404).json({ success: false, error: 'Task not found' });
+  res.json({ success: true, data: task });
+});
+app.post('/api/v1/tasks', (req, res) => {
+  const taskId = `task_${Date.now()}_${_taskIdCounter++}`;
+  const task = {
+    id: _taskIdCounter, task_id: taskId,
+    name: req.body.name || 'New Task',
+    prompt: req.body.prompt || '',
+    provider: req.body.provider || 'flow',
+    status: 'pending', platform: req.body.platform || 'flow',
+    settings: req.body.settings || {},
+    project_id: req.body.project_id || null,
+    project_name: req.body.project_name || null,
+    file_ids: [], result_count: 0,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    user: { id: 1, name: 'Dev Admin (Local)' },
+    ...req.body
+  };
+  task.task_id = taskId;
+  _tasks.unshift(task);
+  res.json({ success: true, data: task });
+});
+app.put('/api/v1/tasks/:taskId', (req, res) => {
+  const idx = _tasks.findIndex(t => t.task_id === req.params.taskId);
+  if (idx < 0) return res.status(404).json({ success: false, error: 'Task not found' });
+  _tasks[idx] = { ..._tasks[idx], ...req.body, updated_at: new Date().toISOString() };
+  res.json({ success: true, data: _tasks[idx] });
+});
+app.delete('/api/v1/tasks/:taskId', (req, res) => {
+  _tasks = _tasks.filter(t => t.task_id !== req.params.taskId);
+  res.json({ success: true });
+});
+app.patch('/api/v1/tasks/:taskId/status', (req, res) => {
+  const task = _tasks.find(t => t.task_id === req.params.taskId);
+  if (task) {
+    task.status = req.body.status || task.status;
+    task.updated_at = new Date().toISOString();
+  }
+  res.json({ success: true, data: task || {} });
+});
+
+// ─── API: History (execution records) ─────────────────────────────────────────
+let _history = [
+  {
+    id: 1, execution_id: 'exec_001', prompt: 'beautiful sunset over ocean',
+    provider: 'flow', model: 'flow-image', status: 'completed',
+    settings: { ratio: '16:9', quantity: 1 },
+    result_count: 1, duration_sec: 12,
+    created_at: '2026-06-01T10:30:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 2, execution_id: 'exec_002', prompt: 'futuristic city with flying cars',
+    provider: 'flow', model: 'flow-image', status: 'completed',
+    settings: { ratio: '16:9', quantity: 2 },
+    result_count: 2, duration_sec: 25,
+    created_at: '2026-06-02T15:45:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  },
+  {
+    id: 3, execution_id: 'exec_003', prompt: 'professional logo design for tech startup',
+    provider: 'chatgpt', model: 'dall-e-3', status: 'completed',
+    settings: { ratio: '1:1', quantity: 1 },
+    result_count: 1, duration_sec: 8,
+    created_at: '2026-06-03T07:00:00Z',
+    user: { id: 1, name: 'Dev Admin (Local)' }
+  }
+];
+
+app.get('/api/v1/history', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const perPage = parseInt(req.query.per_page) || 20;
+  const start = (page - 1) * perPage;
+  const paged = _history.slice(start, start + perPage);
+  res.json({
+    success: true,
+    data: paged,
+    meta: { current_page: page, last_page: Math.ceil(_history.length / perPage) || 1, per_page: perPage, total: _history.length }
+  });
+});
+
+// ─── API: Execution Complete/Cancel ───────────────────────────────────────────
+app.post('/api/v1/execution/complete', (req, res) => {
+  res.json({ success: true, data: { status: 'completed' } });
+});
+app.post('/api/v1/execution/cancel', (req, res) => {
+  res.json({ success: true, data: { status: 'cancelled' } });
+});
+
+// ─── API: Notifications ───────────────────────────────────────────────────────
+let _notifications = [
+  {
+    id: 1, type: 'system', title: 'Chào mừng đến AobyFlowss!',
+    message: 'Extension đã được cài đặt thành công. Hãy bắt đầu tạo ảnh AI ngay!',
+    read: false, created_at: '2026-06-03T08:00:00Z'
+  }
+];
+
+app.get('/api/v1/notifications', (req, res) => {
+  res.json({ success: true, data: _notifications, meta: { unread_count: _notifications.filter(n => !n.read).length } });
+});
+app.post('/api/v1/notifications/mark-read', (req, res) => {
+  _notifications.forEach(n => n.read = true);
+  res.json({ success: true });
+});
+app.delete('/api/v1/notifications', (req, res) => {
+  _notifications = [];
+  res.json({ success: true });
+});
+
+// ─── API: User Prompts (saved prompts) ────────────────────────────────────────
+let _userPrompts = [
+  {
+    id: 1, prompt_id: 'prompt_001', name: 'Phong cảnh thiên nhiên',
+    text: 'Beautiful natural landscape with mountains, rivers, sunset, photorealistic, 8K',
+    tags: ['landscape', 'nature'], is_favorite: true,
+    created_at: '2026-05-15T10:00:00Z', updated_at: '2026-05-15T10:00:00Z'
+  },
+  {
+    id: 2, prompt_id: 'prompt_002', name: 'Logo công ty',
+    text: 'Professional minimalist logo design, flat style, modern tech company, clean lines',
+    tags: ['logo', 'design'], is_favorite: false,
+    created_at: '2026-05-20T14:30:00Z', updated_at: '2026-05-20T14:30:00Z'
+  }
+];
+let _promptIdCounter = 3;
+
+app.get('/api/v1/prompts/user', (req, res) => {
+  res.json({ success: true, data: _userPrompts });
+});
+app.post('/api/v1/prompts/user', (req, res) => {
+  const promptId = `prompt_${Date.now()}_${_promptIdCounter++}`;
+  const prompt = {
+    id: _promptIdCounter, prompt_id: promptId,
+    name: req.body.name || 'Untitled',
+    text: req.body.text || req.body.prompt || '',
+    tags: req.body.tags || [],
+    is_favorite: false,
+    created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    ...req.body
+  };
+  _userPrompts.unshift(prompt);
+  res.json({ success: true, data: prompt });
+});
+app.delete('/api/v1/prompts/user/:promptId', (req, res) => {
+  _userPrompts = _userPrompts.filter(p => p.prompt_id !== req.params.promptId);
+  res.json({ success: true });
+});
+
+// ─── API: Albums ──────────────────────────────────────────────────────────────
+let _albums = [
+  { id: 1, album_id: 'album_default', name: 'Mặc định', image_count: 3, created_at: '2026-05-01T00:00:00Z' },
+  { id: 2, album_id: 'album_favorites', name: 'Yêu thích', image_count: 5, created_at: '2026-05-10T00:00:00Z' }
+];
+
+app.get('/api/v1/albums', (req, res) => {
+  res.json({ success: true, data: _albums });
+});
+app.post('/api/v1/albums', (req, res) => {
+  const album = {
+    id: _albums.length + 1, album_id: `album_${Date.now()}`,
+    name: req.body.name || 'New Album', image_count: 0,
+    created_at: new Date().toISOString()
+  };
+  _albums.push(album);
+  res.json({ success: true, data: album });
+});
+
+// ─── API: Snippets ────────────────────────────────────────────────────────────
+app.get('/api/v1/snippets', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+app.post('/api/v1/snippets', (req, res) => {
+  res.json({ success: true, data: { id: Date.now(), ...req.body } });
+});
+
+// ─── API: Preferred Currency ──────────────────────────────────────────────────
+app.get('/api/v1/auth/me/preferred-currency', (req, res) => {
+  res.json({ success: true, data: { currency: 'VND' } });
+});
+app.put('/api/v1/auth/me/preferred-currency', (req, res) => {
+  res.json({ success: true, data: { currency: req.body.currency || 'VND' } });
+});
+
+// ─── API: Telegram ────────────────────────────────────────────────────────────
+app.get('/api/v1/telegram/status', (req, res) => {
+  res.json({ success: true, data: { linked: false, chat_id: null, bot_username: null } });
+});
+app.post('/api/v1/telegram/link', (req, res) => {
+  res.json({ success: true, data: { linked: true, chat_id: req.body.chat_id, bot_username: 'AobyFlowBot' } });
+});
+app.post('/api/v1/telegram/unlink', (req, res) => {
+  res.json({ success: true, data: { linked: false } });
+});
+app.post('/api/v1/telegram/otp', (req, res) => {
+  res.json({ success: true, data: { code: '123456', expires_at: new Date(Date.now() + 300000).toISOString() } });
+});
+
+// ─── API: Events Poll (fallback for SSE) ──────────────────────────────────────
+app.get('/api/v1/events/poll', (req, res) => {
+  res.json({ success: true, data: [] });
+});
+
+// ─── API: Analytics ───────────────────────────────────────────────────────────
+app.post('/api/v1/analytics/selector-failure', (req, res) => {
+  console.log('[Local Server] Selector failure report:', JSON.stringify(req.body).slice(0, 200));
+  res.json({ success: true });
+});
 
 // ─── API: SSE (stub) ──────────────────────────────────────────────────────────
 app.get('/api/v1/sse/stream', (req, res) => {
